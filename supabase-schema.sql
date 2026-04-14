@@ -73,3 +73,43 @@ create policy "Users can update their own profile"
 create policy "Users can insert their own profile"
   on public.profiles for insert
   with check (auth.uid() = id);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Job search history table
+-- ─────────────────────────────────────────────────────────────────────────────
+
+create table if not exists public.job_searches (
+  id uuid primary key,                              -- client-generated session UUID
+  user_id uuid references auth.users(id) on delete cascade not null,
+  company_name text not null default '',
+  job_title text,
+  job_description text,
+  company_research jsonb,
+  position_research jsonb,
+  tailored_resume jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.job_searches enable row level security;
+
+drop policy if exists "Users can view their own searches" on public.job_searches;
+drop policy if exists "Users can insert their own searches" on public.job_searches;
+drop policy if exists "Users can update their own searches" on public.job_searches;
+drop policy if exists "Users can delete their own searches" on public.job_searches;
+
+create policy "Users can view their own searches"
+  on public.job_searches for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert their own searches"
+  on public.job_searches for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update their own searches"
+  on public.job_searches for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete their own searches"
+  on public.job_searches for delete
+  using (auth.uid() = user_id);

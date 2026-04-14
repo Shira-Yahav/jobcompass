@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Briefcase, Loader2, CheckCircle2, AlertTriangle, ArrowRight, RefreshCw, Link2, X } from "lucide-react";
 
 export default function PositionResearchPage() {
-  const { companyName, jobDescription, setCompanyName, setJobDescription } = useJobStore();
+  const { companyName, jobDescription, sessionId, setCompanyName, setJobDescription } = useJobStore();
   const { positionResearch: result, loadingPosition: loading, runPositionResearch } = useResultsStore();
 
   const [urlInput, setUrlInput] = useState("");
@@ -46,7 +46,7 @@ export default function PositionResearchPage() {
       toast.error("Paste a job description above first.");
       return;
     }
-    runPositionResearch(companyName, jobDescription, (msg) => toast.error(msg));
+    runPositionResearch(companyName, jobDescription, sessionId, (msg) => toast.error(msg));
   }
 
   return (

@@ -15,7 +15,7 @@ import {
 import type { ChatMessage } from "@/types";
 
 export default function TailorResumePage() {
-  const { companyName, jobDescription } = useJobStore();
+  const { companyName, jobDescription, sessionId } = useJobStore();
   const {
     tailoredResume: tailored,
     chatHistory,
@@ -114,7 +114,7 @@ export default function TailorResumePage() {
   function handleTailor() {
     if (!uploadedFilename) { toast.error("Upload your resume first."); return; }
     if (!jobDescription.trim()) { toast.error("Paste a job description above first."); return; }
-    runTailorResume(companyName, jobDescription, [], (msg) => toast.error(msg));
+    runTailorResume(companyName, jobDescription, [], sessionId, (msg) => toast.error(msg));
   }
 
   // ── Chat send ──────────────────────────────────────────────────────────────

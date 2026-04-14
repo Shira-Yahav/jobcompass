@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 export default function CompanyResearchPage() {
-  const { companyName } = useJobStore();
+  const { companyName, sessionId } = useJobStore();
   const { companyResearch: result, loadingCompany: loading, runCompanyResearch } = useResultsStore();
 
   function handleResearch() {
@@ -19,7 +19,7 @@ export default function CompanyResearchPage() {
       toast.error("Enter a company name above first.");
       return;
     }
-    runCompanyResearch(companyName, (msg) => toast.error(msg));
+    runCompanyResearch(companyName, sessionId, (msg) => toast.error(msg));
   }
 
   return (

@@ -29,12 +29,13 @@ interface ResultsStore {
   setChatHistory: (h: ChatMessage[]) => void;
 
   // Async actions — survive component unmount
-  runCompanyResearch: (companyName: string, onError: (msg: string) => void) => Promise<void>;
-  runPositionResearch: (companyName: string, jobDescription: string, onError: (msg: string) => void) => Promise<void>;
+  runCompanyResearch: (companyName: string, sessionId: string, onError: (msg: string) => void) => Promise<void>;
+  runPositionResearch: (companyName: string, jobDescription: string, sessionId: string, onError: (msg: string) => void) => Promise<void>;
   runTailorResume: (
     companyName: string,
     jobDescription: string,
     history: ChatMessage[],
+    sessionId: string,
     onError: (msg: string) => void,
   ) => Promise<void>;
   sendResumeChat: (
@@ -62,7 +63,7 @@ export const useResultsStore = create<ResultsStore>()(
       setChatHistory: (h) => set({ chatHistory: h }),
 
       // ── Company research ──────────────────────────────────────────────────
-      runCompanyResearch: async (companyName, onError) => {
+      runCompanyResearch: async (companyName, sessionId, onError) => {
         set({ loadingCompany: true, companyResearch: null });
         try {
           const res = await fetch("/api/research-company", {
@@ -71,8 +72,18 @@ export const useResultsStore = create<ResultsStore>()(
             body: JSON.stringify({ companyName }),
           });
           const data = await res.json();
-          if (!res.ok) onError(data.error ?? "Something went wrong.");
-          else set({ companyResearch: data as CompanyResearch });
+          if (!res.ok) {
+            onError(data.error ?? "Something went wrong.");
+          } else {
+            const result = data as CompanyResearch;
+            set({ companyResearch: result });
+            // Save to history (best-effort)
+            fetch("/api/history", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: sessionId, companyName, companyResearch: result }),
+            }).catch(() => {});
+          }
         } catch {
           onError("Network error — please try again.");
         } finally {
@@ -81,7 +92,7 @@ export const useResultsStore = create<ResultsStore>()(
       },
 
       // ── Position research ─────────────────────────────────────────────────
-      runPositionResearch: async (companyName, jobDescription, onError) => {
+      runPositionResearch: async (companyName, jobDescription, sessionId, onError) => {
         set({ loadingPosition: true, positionResearch: null });
         try {
           const res = await fetch("/api/research-position", {
@@ -90,8 +101,19 @@ export const useResultsStore = create<ResultsStore>()(
             body: JSON.stringify({ companyName, jobDescription }),
           });
           const data = await res.json();
-          if (!res.ok) onError(data.error ?? "Something went wrong.");
-          else set({ positionResearch: data as PositionResearch });
+          if (!res.ok) {
+            onError(data.error ?? "Something went wrong.");
+          } else {
+            const result = data as PositionResearch;
+            set({ positionResearch: result });
+            // Save to history (best-effort)
+            const jobTitle = result.role_summary?.split(".")[0] ?? null;
+            fetch("/api/history", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: sessionId, companyName, jobDescription, jobTitle, positionResearch: result }),
+            }).catch(() => {});
+          }
         } catch {
           onError("Network error — please try again.");
         } finally {
@@ -100,7 +122,7 @@ export const useResultsStore = create<ResultsStore>()(
       },
 
       // ── Tailor resume (initial) ───────────────────────────────────────────
-      runTailorResume: async (companyName, jobDescription, history, onError) => {
+      runTailorResume: async (companyName, jobDescription, history, sessionId, onError) => {
         set({ loadingResume: true, tailoredResume: null, chatHistory: [] });
         try {
           const res = await fetch("/api/tailor-resume", {
@@ -120,6 +142,12 @@ export const useResultsStore = create<ResultsStore>()(
                 { role: "assistant", content: JSON.stringify(result) },
               ],
             });
+            // Save to history (best-effort)
+            fetch("/api/history", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: sessionId, companyName, jobDescription, tailoredResume: result }),
+            }).catch(() => {});
           }
         } catch {
           onError("Network error — please try again.");

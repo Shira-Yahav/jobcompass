@@ -4,13 +4,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import { User, Building2, Briefcase, FileText, LogOut, Compass } from "lucide-react";
+import { User, Building2, Briefcase, FileText, History, LogOut, Compass } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/profile",           label: "My Profile",          icon: User },
   { href: "/company-research",  label: "Company Research",     icon: Building2 },
   { href: "/position-research", label: "Position Research",    icon: Briefcase },
   { href: "/tailor-resume",     label: "Tailor Resume",        icon: FileText },
+  { href: "/history",           label: "History",              icon: History },
 ] as const;
 
 export function Sidebar() {

@@ -90,3 +90,18 @@ export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+// ─── History ─────────────────────────────────────────────────────────────────
+
+export interface HistoryEntry {
+  id: string;                              // session UUID
+  user_id: string;
+  company_name: string;
+  job_title: string | null;
+  job_description: string | null;
+  company_research: CompanyResearch | null;
+  position_research: PositionResearch | null;
+  tailored_resume: TailoredResume | null;
+  created_at: string;
+  updated_at: string;
+}
