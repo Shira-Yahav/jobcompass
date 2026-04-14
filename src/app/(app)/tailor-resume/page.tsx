@@ -12,20 +12,26 @@ import remarkGfm from "remark-gfm";
 import {
   FileText, Loader2, Upload, CheckCircle2, SendHorizonal, Copy, Download, RefreshCw,
 } from "lucide-react";
-import type { TailoredResume, ChatMessage } from "@/types";
+import type { ChatMessage } from "@/types";
 
 export default function TailorResumePage() {
   const { companyName, jobDescription } = useJobStore();
-  const { tailoredResume: tailored, chatHistory, setTailoredResume, setChatHistory } = useResultsStore();
+  const {
+    tailoredResume: tailored,
+    chatHistory,
+    loadingResume,
+    setTailoredResume,
+    setChatHistory,
+    runTailorResume,
+    sendResumeChat,
+  } = useResultsStore();
   const supabase = createClient();
 
   // Upload state (not persisted — loaded from Supabase on mount)
   const [uploadedFilename, setUploadedFilename] = useState<string | null>(null);
   const [additionalContext, setAdditionalContext] = useState("");
   const [uploading, setUploading] = useState(false);
-  const [tailoring, setTailoring] = useState(false);
   const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
 
   // Auto-save context
   const userIdRef = useRef<string | null>(null);
@@ -105,57 +111,20 @@ export default function TailorResumePage() {
   }
 
   // ── Tailor ─────────────────────────────────────────────────────────────────
-  async function handleTailor() {
+  function handleTailor() {
     if (!uploadedFilename) { toast.error("Upload your resume first."); return; }
     if (!jobDescription.trim()) { toast.error("Paste a job description above first."); return; }
-    setTailoring(true);
-    setTailoredResume(null);
-    setChatHistory([]);
-
-    const res = await fetch("/api/tailor-resume", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ companyName, jobDescription, history: [] }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error ?? "Something went wrong.");
-    } else {
-      const result = data as TailoredResume;
-      setTailoredResume(result);
-      setChatHistory([
-        { role: "user", content: "Please tailor my resume for this role." },
-        { role: "assistant", content: JSON.stringify(result) },
-      ]);
-    }
-    setTailoring(false);
+    runTailorResume(companyName, jobDescription, [], (msg) => toast.error(msg));
   }
 
   // ── Chat send ──────────────────────────────────────────────────────────────
-  async function handleChatSend() {
-    if (!chatInput.trim() || chatLoading) return;
+  function handleChatSend() {
+    if (!chatInput.trim() || loadingResume) return;
     const userMsg: ChatMessage = { role: "user", content: chatInput };
     const newHistory = [...chatHistory, userMsg];
     setChatHistory(newHistory);
     setChatInput("");
-    setChatLoading(true);
-
-    const res = await fetch("/api/tailor-resume", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ companyName, jobDescription, history: newHistory }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error ?? "Something went wrong.");
-    } else {
-      const reply = (data as { reply: string }).reply ?? "";
-      setChatHistory([...newHistory, { role: "assistant", content: reply }]);
-      if (reply.includes("##") && tailored) {
-        setTailoredResume({ ...tailored, resume_markdown: reply });
-      }
-    }
-    setChatLoading(false);
+    sendResumeChat(companyName, jobDescription, newHistory, (msg) => toast.error(msg));
   }
 
   // ── Copy / Download ────────────────────────────────────────────────────────
@@ -190,7 +159,7 @@ export default function TailorResumePage() {
         </div>
         <button
           onClick={handleTailor}
-          disabled={tailoring || !uploadedFilename}
+          disabled={loadingResume || !uploadedFilename}
           className={`
             flex items-center gap-2 rounded-md px-4 py-2 text-[13px] font-medium
             transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0
@@ -199,7 +168,7 @@ export default function TailorResumePage() {
               : "bg-indigo-600 text-white hover:bg-indigo-500"}
           `}
         >
-          {tailoring ? (
+          {loadingResume && !tailored ? (
             <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Tailoring…</>
           ) : tailored ? (
             <><RefreshCw className="h-3.5 w-3.5" /> Regenerate</>
@@ -258,7 +227,7 @@ export default function TailorResumePage() {
           </div>
 
           {/* ── Empty state ─────────────────────────────────────────────────── */}
-          {!tailored && !tailoring && (
+          {!tailored && !loadingResume && (
             <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-slate-200 text-[13px] text-slate-400">
               Upload your resume and click Tailor resume.
             </div>
@@ -345,10 +314,10 @@ export default function TailorResumePage() {
                   />
                   <button
                     onClick={handleChatSend}
-                    disabled={chatLoading || !chatInput.trim()}
+                    disabled={loadingResume || !chatInput.trim()}
                     className="self-end rounded-md bg-indigo-600 p-2.5 text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
                   >
-                    {chatLoading
+                    {loadingResume
                       ? <Loader2 className="h-4 w-4 animate-spin" />
                       : <SendHorizonal className="h-4 w-4" />}
                   </button>

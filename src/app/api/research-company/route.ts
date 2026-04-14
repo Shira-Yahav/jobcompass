@@ -61,9 +61,9 @@ export async function POST(request: Request) {
   try {
     const tv = tavily({ apiKey: process.env.TAVILY_API_KEY! });
 
-    // Run two searches in parallel: funding/overview + product details
-    const [fundingSearch, productSearch] = await Promise.all([
-      tv.search(`${companyName} company funding investors crunchbase`, {
+    // Run four searches in parallel: funding history, product overview, employees/LinkedIn, and company culture/size
+    const [fundingSearch, productSearch, linkedinSearch, employeesSearch] = await Promise.all([
+      tv.search(`${companyName} funding rounds history crunchbase series seed`, {
         maxResults: 4,
         searchDepth: "basic",
       }),
@@ -71,11 +71,21 @@ export async function POST(request: Request) {
         maxResults: 4,
         searchDepth: "basic",
       }),
+      tv.search(`${companyName} linkedin company employees headcount`, {
+        maxResults: 3,
+        searchDepth: "basic",
+      }),
+      tv.search(`${companyName} total employees team size 2024 2025`, {
+        maxResults: 3,
+        searchDepth: "basic",
+      }),
     ]);
 
     const allResults = [
       ...fundingSearch.results,
       ...productSearch.results,
+      ...linkedinSearch.results,
+      ...employeesSearch.results,
     ];
 
     // Deduplicate by URL, build numbered source list
@@ -116,10 +126,10 @@ Return ONLY valid JSON matching this exact structure (no markdown fences, no ext
   "name": "string — official company name as found in sources",
   "company_type": "string — Startup / Scale-up / Corporate / Public Company / Agency / Non-profit / Government",
   "funding_stage": "string — e.g. Series B / IPO / Bootstrapped / unknown",
-  "total_raised": "string — total disclosed funding e.g. $42M; use 'unknown' if not found in sources",
+  "total_raised": "string — total disclosed funding e.g. $42M; if you find individual round amounts (seed, Series A, B, etc.), ADD THEM UP to produce a total; use 'unknown' if no funding figures found in sources",
   "last_round_date": "string — month/quarter and year of most recent round e.g. Q3 2023; 'unknown' if not found",
   "key_investors": ["string", "..."],
-  "company_size": "string — employee count or range e.g. '200–500 employees'; 'unknown' if not found",
+  "company_size": "string — employee count or range e.g. '200–500 employees'; check LinkedIn and headcount sources — 'unknown' only if genuinely not found",
   "value_proposition": "string — 2–3 sentences on the value they deliver and to whom",
   "problem_solved": "string — 2–3 sentences on the specific problem they address",
   "technology_stack": "string — notable technologies, architecture, or technical approach mentioned in sources (1–2 sentences; omit if nothing found)",
@@ -182,7 +192,7 @@ SCORING RULES:
 
   const message = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
-    max_tokens: 2048,
+    max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
   });
 

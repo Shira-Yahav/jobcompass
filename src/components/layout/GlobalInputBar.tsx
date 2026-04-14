@@ -7,7 +7,11 @@ import { Target } from "lucide-react";
  * GlobalInputBar — rendered on Company Research, Position Research, and Tailor Resume pages.
  * Values persist to localStorage via Zustand persist middleware.
  */
-export function GlobalInputBar() {
+interface GlobalInputBarProps {
+  showJobDescription?: boolean;
+}
+
+export function GlobalInputBar({ showJobDescription = true }: GlobalInputBarProps) {
   const { companyName, jobDescription, setCompanyName, setJobDescription } =
     useJobStore();
 
@@ -33,19 +37,21 @@ export function GlobalInputBar() {
             transition-colors
           "
         />
-        <textarea
-          placeholder="Paste the job description here…"
-          value={jobDescription}
-          onChange={(e) => setJobDescription(e.target.value)}
-          rows={3}
-          className="
-            flex-1 rounded-md border border-[--border]
-            bg-[--input] px-3 py-2 text-sm text-[--foreground]
-            placeholder:text-[--muted-foreground] outline-none
-            focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/40
-            resize-none overflow-y-auto max-h-32 transition-colors
-          "
-        />
+        {showJobDescription && (
+          <textarea
+            placeholder="Paste the job description here…"
+            value={jobDescription}
+            onChange={(e) => setJobDescription(e.target.value)}
+            rows={3}
+            className="
+              flex-1 rounded-md border border-[--border]
+              bg-[--input] px-3 py-2 text-sm text-[--foreground]
+              placeholder:text-[--muted-foreground] outline-none
+              focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/40
+              resize-none overflow-y-auto max-h-32 transition-colors
+            "
+          />
+        )}
       </div>
     </div>
   );

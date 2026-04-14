@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useJobStore } from "@/store/jobStore";
 import { useResultsStore } from "@/store/resultsStore";
 import { GlobalInputBar } from "@/components/layout/GlobalInputBar";
@@ -10,39 +9,22 @@ import {
   Building2, Loader2, Users, TrendingUp, ExternalLink,
   DollarSign, CalendarDays, Layers, Globe, Cpu, RefreshCw,
 } from "lucide-react";
-import type { CompanyResearch } from "@/types";
 
 export default function CompanyResearchPage() {
   const { companyName } = useJobStore();
-  const { companyResearch: result, setCompanyResearch } = useResultsStore();
-  const [loading, setLoading] = useState(false);
+  const { companyResearch: result, loadingCompany: loading, runCompanyResearch } = useResultsStore();
 
-  async function handleResearch() {
+  function handleResearch() {
     if (!companyName.trim()) {
       toast.error("Enter a company name above first.");
       return;
     }
-    setLoading(true);
-    setCompanyResearch(null);
-
-    const res = await fetch("/api/research-company", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ companyName }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      toast.error(data.error ?? "Something went wrong.");
-    } else {
-      setCompanyResearch(data as CompanyResearch);
-    }
-    setLoading(false);
+    runCompanyResearch(companyName, (msg) => toast.error(msg));
   }
 
   return (
     <div className="flex flex-col h-full">
-      <GlobalInputBar />
+      <GlobalInputBar showJobDescription={false} />
 
       {/* Page header */}
       <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
