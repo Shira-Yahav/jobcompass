@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useJobStore } from "@/store/jobStore";
 import { useResultsStore } from "@/store/resultsStore";
 import { ScoreCard } from "@/components/features/ScoreCard";
@@ -13,49 +13,44 @@ export default function PositionResearchPage() {
 
   const [urlInput, setUrlInput] = useState("");
   const [extracting, setExtracting] = useState(false);
-  const extractedRef = useRef(false); // prevent double-extraction
 
-  // Auto-extract when a valid URL is pasted
-  useEffect(() => {
-    const url = urlInput.trim();
-    if (!url.startsWith("http") || extractedRef.current) return;
-
-    const timer = setTimeout(async () => {
-      extractedRef.current = true;
-      setExtracting(true);
-      try {
-        const res = await fetch("/api/extract-job", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url }),
-        });
-        const data = await res.json();
-        if (!res.ok) {
-          toast.error(data.error ?? "Could not extract job data from that URL.");
-        } else {
-          if (data.companyName) setCompanyName(data.companyName);
-          if (data.jobDescription) setJobDescription(data.jobDescription);
-          toast.success("Job posting extracted — fields populated below.");
-        }
-      } catch {
-        toast.error("Network error — please try again.");
-      } finally {
-        setExtracting(false);
+  async function extractFromUrl(url: string) {
+    const trimmed = url.trim();
+    if (!trimmed.startsWith("http")) return;
+    setExtracting(true);
+    try {
+      const res = await fetch("/api/extract-job", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: trimmed }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Could not extract job data from that URL.");
+      } else {
+        if (data.companyName) setCompanyName(data.companyName);
+        if (data.jobDescription) setJobDescription(data.jobDescription);
+        toast.success("Job posting extracted — fields populated below.");
       }
-    }, 600);
+    } catch {
+      toast.error("Network error — please try again.");
+    } finally {
+      setExtracting(false);
+    }
+  }
 
-    return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urlInput]);
-
-  // Reset extraction guard when URL is cleared or changed significantly
-  function handleUrlChange(val: string) {
-    extractedRef.current = false;
-    setUrlInput(val);
+  function handleUrlPaste(e: React.ClipboardEvent<HTMLInputElement>) {
+    const pasted = e.clipboardData.getData("text").trim();
+    if (pasted.startsWith("http")) {
+      // Use pasted value directly — state hasn't updated yet at this point
+      setUrlInput(pasted);
+      extractFromUrl(pasted);
+      e.preventDefault();
+    }
   }
 
   function handleResearch() {
-    if (!jobDescription.trim() && !urlInput.trim()) {
+    if (!jobDescription.trim()) {
       toast.error("Paste a job URL or description first.");
       return;
     }
@@ -110,7 +105,8 @@ export default function PositionResearchPage() {
               type="url"
               placeholder="Paste a job posting URL to auto-fill company and description…"
               value={urlInput}
-              onChange={(e) => handleUrlChange(e.target.value)}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onPaste={handleUrlPaste}
               className="w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-9 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:bg-white focus:ring-1 focus:ring-indigo-200 transition-colors"
             />
           </div>
