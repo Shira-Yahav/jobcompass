@@ -13,11 +13,13 @@ export default function PositionResearchPage() {
 
   const [urlInput, setUrlInput] = useState("");
   const [extracting, setExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
 
   async function extractFromUrl(url: string) {
     const trimmed = url.trim();
     if (!trimmed.startsWith("http")) return;
     setExtracting(true);
+    setExtractError(null);
     try {
       const res = await fetch("/api/extract-job", {
         method: "POST",
@@ -26,14 +28,14 @@ export default function PositionResearchPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error ?? "Could not extract job data from that URL.");
+        setExtractError(data.error ?? "Could not fetch content from this URL.");
       } else {
         if (data.companyName) setCompanyName(data.companyName);
         if (data.jobDescription) setJobDescription(data.jobDescription);
-        toast.success("Job posting extracted — fields populated below.");
+        setExtractError(null);
       }
     } catch {
-      toast.error("Network error — please try again.");
+      setExtractError("Network error — please try again.");
     } finally {
       setExtracting(false);
     }
@@ -42,7 +44,6 @@ export default function PositionResearchPage() {
   function handleUrlPaste(e: React.ClipboardEvent<HTMLInputElement>) {
     const pasted = e.clipboardData.getData("text").trim();
     if (pasted.startsWith("http")) {
-      // Use pasted value directly — state hasn't updated yet at this point
       setUrlInput(pasted);
       extractFromUrl(pasted);
       e.preventDefault();
@@ -96,23 +97,42 @@ export default function PositionResearchPage() {
 
         {/* URL input — right below the title */}
         <div className="mt-4">
-          <div className="relative">
-            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
-            {extracting && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-indigo-500 animate-spin" />
-            )}
-            <input
-              type="url"
-              placeholder="Paste a job posting URL to auto-fill company and description…"
-              value={urlInput}
-              onChange={(e) => setUrlInput(e.target.value)}
-              onPaste={handleUrlPaste}
-              className="w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-9 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:bg-white focus:ring-1 focus:ring-indigo-200 transition-colors"
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+              {extracting && (
+                <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-indigo-500 animate-spin" />
+              )}
+              <input
+                type="url"
+                placeholder="Paste a job posting URL to auto-fill fields below…"
+                value={urlInput}
+                onChange={(e) => setUrlInput(e.target.value)}
+                onPaste={handleUrlPaste}
+                className="w-full rounded-md border border-slate-200 bg-slate-50 pl-9 pr-9 py-2.5 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:bg-white focus:ring-1 focus:ring-indigo-200 transition-colors"
+              />
+            </div>
+            <button
+              onClick={() => extractFromUrl(urlInput)}
+              disabled={extracting || !urlInput.trim()}
+              className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-2 text-[12px] font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-40 shrink-0"
+            >
+              {extracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Link2 className="h-3.5 w-3.5" />}
+              {extracting ? "Extracting…" : "Extract"}
+            </button>
           </div>
-          <p className="mt-1.5 text-[11px] text-slate-400">
-            Fields below auto-fill from the URL. Or fill them in manually.
-          </p>
+          {extractError ? (
+            <p className="mt-1.5 text-[11px] text-red-500">
+              {extractError}{" "}
+              {extractError.includes("fetch") || extractError.includes("URL") ? (
+                <span className="text-slate-400">LinkedIn search pages are blocked — try opening the job post directly and copying that URL, or paste the job description manually below.</span>
+              ) : null}
+            </p>
+          ) : (
+            <p className="mt-1.5 text-[11px] text-slate-400">
+              Paste a direct job post URL (not a search results page). Fields below auto-fill, or fill manually.
+            </p>
+          )}
         </div>
 
         {/* Editable company + job description fields */}
