@@ -257,7 +257,7 @@ export default function ProfilePage() {
             titleRight={
               <div className="flex items-center gap-1.5">
                 <SlidersHorizontal className="h-3.5 w-3.5 text-indigo-500" />
-                <span className="text-[11px] font-mono font-semibold text-indigo-600">
+                <span className="text-[11px] font-mono font-semibold text-indigo-500">
                   CUSTOM WEIGHTS
                 </span>
               </div>
@@ -284,7 +284,7 @@ export default function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => setFitWeights(DEFAULTS)}
-                  className="text-[11px] text-slate-400 hover:text-indigo-600 transition-colors font-medium"
+                  className="text-[11px] text-slate-400 hover:text-indigo-500 transition-colors font-medium"
                 >
                   Reset to defaults
                 </button>
@@ -312,7 +312,7 @@ function WeightSlider({
   onChange: (v: number) => void;
 }) {
   const importanceLabel = value <= 3 ? "Low" : value <= 7 ? "Medium" : "High";
-  const importanceColor = value <= 3 ? "text-slate-400" : value <= 7 ? "text-amber-600" : "text-indigo-600";
+  const importanceColor = value <= 3 ? "text-slate-400" : value <= 7 ? "text-amber-600" : "text-indigo-500";
 
   return (
     <div className="flex flex-col gap-2">
@@ -350,7 +350,7 @@ function WeightSlider({
             [&::-webkit-slider-thumb]:rounded-full
             [&::-webkit-slider-thumb]:bg-white
             [&::-webkit-slider-thumb]:border-2
-            [&::-webkit-slider-thumb]:border-indigo-500
+            [&::-webkit-slider-thumb]:border-indigo-400
             [&::-webkit-slider-thumb]:shadow-sm
             [&::-webkit-slider-thumb]:transition-all
             [&::-webkit-slider-thumb]:hover:scale-110
@@ -359,7 +359,7 @@ function WeightSlider({
             [&::-moz-range-thumb]:rounded-full
             [&::-moz-range-thumb]:bg-white
             [&::-moz-range-thumb]:border-2
-            [&::-moz-range-thumb]:border-indigo-500"
+            [&::-moz-range-thumb]:border-indigo-400"
           style={{
             background: `linear-gradient(to right, #6366f1 0%, #6366f1 ${(value - 1) / 9 * 100}%, #e2e8f0 ${(value - 1) / 9 * 100}%, #e2e8f0 100%)`,
           }}
@@ -376,7 +376,7 @@ const inputCls = `
   h-9 w-full rounded-md border border-slate-200
   bg-white px-3 text-[13px] text-slate-900
   placeholder:text-slate-400 outline-none
-  focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200
+  focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100
   transition-colors
 `;
 
@@ -433,7 +433,7 @@ function ToggleChip({
       className={`
         flex-1 rounded-md border py-1.5 text-[12px] font-medium transition-colors
         ${active
-          ? "border-indigo-500 bg-indigo-50 text-indigo-700"
+          ? "border-indigo-400 bg-indigo-50 text-indigo-500"
           : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700"}
       `}
     >

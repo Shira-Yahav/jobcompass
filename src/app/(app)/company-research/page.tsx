@@ -130,7 +130,7 @@ export default function CompanyResearchPage() {
                       href={src.url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 text-[12px] text-indigo-600 hover:text-indigo-800 hover:underline w-fit"
+                      className="flex items-center gap-1.5 text-[12px] text-indigo-500 hover:text-indigo-800 hover:underline w-fit"
                     >
                       <ExternalLink className="h-3 w-3 shrink-0 opacity-60" />
                       <span className="truncate">{src.title || src.url}</span>
@@ -152,7 +152,7 @@ function Badge({ children, variant = "default" }: { children: React.ReactNode; v
   return (
     <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold font-mono
       ${variant === "indigo"
-        ? "border border-indigo-200 bg-indigo-50 text-indigo-700"
+        ? "border border-indigo-200 bg-indigo-50 text-indigo-500"
         : "border border-slate-200 bg-slate-100 text-slate-600"}`}>
       {children}
     </span>
@@ -175,7 +175,7 @@ function Section({ icon: Icon, title, children }: { icon: React.ElementType; tit
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-2 mb-3">
-        <Icon className="h-3.5 w-3.5 text-indigo-400" />
+        <Icon className="h-3.5 w-3.5 text-indigo-300" />
         <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-slate-400">{title}</span>
       </div>
       {children}

@@ -54,7 +54,7 @@ export default function PositionResearchPage() {
               {/* Role summary */}
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex items-center gap-2 mb-2.5">
-                  <Briefcase className="h-3.5 w-3.5 text-indigo-400" />
+                  <Briefcase className="h-3.5 w-3.5 text-indigo-300" />
                   <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-slate-400">
                     Role summary
                   </span>
@@ -74,8 +74,8 @@ export default function PositionResearchPage() {
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                      <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-emerald-700/70">Strengths</span>
-                      <span className="ml-auto text-[11px] font-mono font-bold tabular-nums text-emerald-700">{result.key_strengths.length}</span>
+                      <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-emerald-600/70">Strengths</span>
+                      <span className="ml-auto text-[11px] font-mono font-bold tabular-nums text-emerald-600">{result.key_strengths.length}</span>
                     </div>
                     <ul className="flex flex-col gap-2">
                       {result.key_strengths.map((s, i) => (
@@ -90,8 +90,8 @@ export default function PositionResearchPage() {
                   <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
-                      <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-amber-700/70">Gaps</span>
-                      <span className="ml-auto text-[11px] font-mono font-bold tabular-nums text-amber-700">{result.key_gaps.length}</span>
+                      <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-amber-600/70">Gaps</span>
+                      <span className="ml-auto text-[11px] font-mono font-bold tabular-nums text-amber-600">{result.key_gaps.length}</span>
                     </div>
                     <ul className="flex flex-col gap-2">
                       {result.key_gaps.map((g, i) => (
@@ -108,15 +108,15 @@ export default function PositionResearchPage() {
               {result.actionable_advice?.length > 0 && (
                 <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <ArrowRight className="h-3.5 w-3.5 text-indigo-600" />
-                    <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-indigo-700/70">
+                    <ArrowRight className="h-3.5 w-3.5 text-indigo-500" />
+                    <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-indigo-500/70">
                       How to improve your chances
                     </span>
                   </div>
                   <ol className="flex flex-col gap-2.5">
                     {result.actionable_advice.map((advice, i) => (
                       <li key={i} className="flex gap-3 text-[13px] text-slate-700">
-                        <span className="shrink-0 h-5 w-5 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-[10px] font-bold font-mono text-indigo-600">
+                        <span className="shrink-0 h-5 w-5 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-[10px] font-bold font-mono text-indigo-500">
                           {i + 1}
                         </span>
                         {advice}

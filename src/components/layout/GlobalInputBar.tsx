@@ -46,10 +46,10 @@ export function GlobalInputBar() {
     <div className="border-b border-slate-200 bg-slate-50 px-6 py-3 shrink-0">
       {/* Label row */}
       <div className="flex items-center gap-1.5 mb-2.5">
-        <div className="flex h-4 w-4 items-center justify-center rounded bg-indigo-600">
+        <div className="flex h-4 w-4 items-center justify-center rounded bg-indigo-500">
           <Target className="h-2.5 w-2.5 text-white" />
         </div>
-        <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-indigo-600">
+        <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-indigo-500">
           Active Target
         </span>
         {(hasCompany || hasJD) && (
@@ -68,7 +68,7 @@ export function GlobalInputBar() {
             value={companyName}
             onChange={(e) => setCompanyName(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") handleRun(); }}
-            className="h-9 w-full rounded-md border border-slate-200 bg-white pl-8 pr-3 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 transition-colors shadow-sm"
+            className="h-9 w-full rounded-md border border-slate-200 bg-white pl-8 pr-3 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100 transition-colors shadow-sm"
           />
         </div>
 
@@ -80,7 +80,7 @@ export function GlobalInputBar() {
             value={jobDescription}
             onChange={(e) => setJobDescription(e.target.value)}
             rows={2}
-            className="w-full rounded-md border border-slate-200 bg-white pl-8 pr-9 py-2 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 resize-none overflow-y-auto max-h-28 transition-colors shadow-sm"
+            className="w-full rounded-md border border-slate-200 bg-white pl-8 pr-9 py-2 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100 resize-none overflow-y-auto max-h-28 transition-colors shadow-sm"
           />
           {/* URL import — coming soon */}
           <Tooltip content="URL import — coming soon" side="left">
@@ -98,7 +98,7 @@ export function GlobalInputBar() {
           <button
             onClick={handleRun}
             disabled={loading}
-            className="flex h-9 items-center gap-1.5 rounded-md bg-indigo-600 px-4 text-[13px] font-semibold text-white shadow-sm shadow-indigo-200 transition-all hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            className="flex h-9 items-center gap-1.5 rounded-md bg-indigo-500 px-4 text-[13px] font-semibold text-white shadow-sm shadow-indigo-200 transition-all hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           >
             {loading
               ? <Loader2 className="h-3.5 w-3.5 animate-spin" />

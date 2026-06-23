@@ -59,8 +59,8 @@
   --popover:      oklch(1.0 0 0);
   --popover-foreground: oklch(0.145 0.022 263);
 
-  /* Primary action — indigo-600 */
-  --primary:      oklch(0.541 0.218 264);   /* #4f46e5 */
+  /* Primary action — indigo-500 (softened) */
+  --primary:      oklch(0.585 0.196 264);   /* #6366f1 — one step lighter */
   --primary-foreground: oklch(0.99 0 0);
 
   /* Elevated / secondary surfaces */
@@ -78,7 +78,7 @@
   /* Borders & inputs */
   --border:       oklch(0.901 0.010 255);   /* light blue-gray border */
   --input:        oklch(0.990 0.004 258);   /* near-white input bg */
-  --ring:         oklch(0.541 0.218 264);
+  --ring:         oklch(0.585 0.196 264);
 
   --radius: 0.5rem;
 

@@ -170,7 +170,7 @@ export default function TailorResumePage() {
               transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0
               ${tailored
                 ? "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:shadow-sm"
-                : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm shadow-indigo-200"}
+                : "bg-indigo-500 text-white hover:bg-indigo-400 shadow-sm shadow-indigo-200"}
             `}
           >
             {loadingResume && !tailored ? (
@@ -224,7 +224,7 @@ export default function TailorResumePage() {
                   value={additionalContext}
                   onChange={(e) => setAdditionalContext(e.target.value)}
                   rows={2}
-                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 resize-none overflow-y-auto max-h-24 transition-colors"
+                  className="w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100 resize-none overflow-y-auto max-h-24 transition-colors"
                 />
               </div>
             </div>
@@ -292,7 +292,7 @@ export default function TailorResumePage() {
                       <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                         <div className={`max-w-[85%] rounded-lg px-3 py-2.5 text-[13px] leading-relaxed
                           ${msg.role === "user"
-                            ? "bg-indigo-600 text-white"
+                            ? "bg-indigo-500 text-white"
                             : "border border-slate-200 bg-slate-50 text-slate-700"}`}>
                           <p className="whitespace-pre-wrap">{msg.content}</p>
                         </div>
@@ -308,7 +308,7 @@ export default function TailorResumePage() {
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     rows={2}
-                    className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200 resize-none overflow-y-auto max-h-24 transition-colors"
+                    className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100 resize-none overflow-y-auto max-h-24 transition-colors"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
@@ -319,7 +319,7 @@ export default function TailorResumePage() {
                   <button
                     onClick={handleChatSend}
                     disabled={loadingResume || !chatInput.trim()}
-                    className="self-end rounded-md bg-indigo-600 p-2.5 text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
+                    className="self-end rounded-md bg-indigo-500 p-2.5 text-white transition-colors hover:bg-indigo-400 disabled:opacity-50"
                   >
                     {loadingResume
                       ? <Loader2 className="h-4 w-4 animate-spin" />

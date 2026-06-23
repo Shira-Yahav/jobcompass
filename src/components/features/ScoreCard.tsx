@@ -17,10 +17,10 @@ export function ScoreCard({ title, score }: ScoreCardProps) {
 
   const palette =
     pct >= 70
-      ? { bg: "bg-emerald-50", text: "text-emerald-700", bar: "bg-emerald-500", border: "border-emerald-200", glow: "shadow-emerald-100", label: "STRONG FIT" }
+      ? { bg: "bg-emerald-50", text: "text-emerald-600", bar: "bg-emerald-400", border: "border-emerald-200", glow: "shadow-emerald-100", label: "STRONG FIT" }
       : pct >= 40
-        ? { bg: "bg-amber-50", text: "text-amber-700", bar: "bg-amber-400", border: "border-amber-200", glow: "shadow-amber-100", label: "PARTIAL FIT" }
-        : { bg: "bg-red-50", text: "text-red-700", bar: "bg-red-400", border: "border-red-200", glow: "shadow-red-100", label: "WEAK FIT" };
+        ? { bg: "bg-amber-50", text: "text-amber-600", bar: "bg-amber-400", border: "border-amber-200", glow: "shadow-amber-100", label: "PARTIAL FIT" }
+        : { bg: "bg-red-50", text: "text-red-600", bar: "bg-red-400", border: "border-red-200", glow: "shadow-red-100", label: "WEAK FIT" };
 
   return (
     <>
@@ -123,7 +123,7 @@ function ScoreRing({
   const offset = circumference - (pct / 100) * circumference;
 
   const colorMap: Record<string, string> = {
-    "bg-emerald-500": "#10b981",
+    "bg-emerald-400": "#10b981",
     "bg-amber-400": "#fbbf24",
     "bg-red-400": "#f87171",
   };

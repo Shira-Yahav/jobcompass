@@ -34,7 +34,7 @@ export function Sidebar() {
       {/* Brand */}
       <div className="mb-6 px-4">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-600 shadow-sm shadow-indigo-200">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-indigo-500 shadow-sm shadow-indigo-200">
             <Compass className="h-4 w-4 text-white" />
           </div>
           <div>
@@ -62,7 +62,7 @@ export function Sidebar() {
                 className={cn(
                   "group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] font-medium transition-all",
                   active
-                    ? "bg-white text-indigo-700 shadow-sm shadow-slate-200 border border-slate-200"
+                    ? "bg-white text-indigo-500 shadow-sm shadow-slate-200 border border-slate-200"
                     : "text-slate-500 hover:bg-white/70 hover:text-slate-800 hover:shadow-sm"
                 )}
               >
@@ -72,7 +72,7 @@ export function Sidebar() {
                 <Icon
                   className={cn(
                     "h-3.5 w-3.5 shrink-0 transition-colors",
-                    active ? "text-indigo-600" : "text-slate-400 group-hover:text-slate-600"
+                    active ? "text-indigo-500" : "text-slate-400 group-hover:text-slate-600"
                   )}
                 />
                 <span className="flex-1">{label}</span>
