@@ -174,11 +174,9 @@ export default function TailorResumePage() {
             `}
           >
             {loadingResume && !tailored ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Tailoring…</>
-            ) : tailored ? (
-              <><RefreshCw className="h-3.5 w-3.5" /> Regenerate</>
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Running…</>
             ) : (
-              <><Zap className="h-3.5 w-3.5" /> Tailor resume</>
+              <><Zap className="h-3.5 w-3.5" /> Run</>
             )}
           </button>
         </Tooltip>

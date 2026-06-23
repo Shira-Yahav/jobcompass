@@ -1,64 +1,29 @@
 "use client";
 
-import { useJobStore } from "@/store/jobStore";
 import { useResultsStore } from "@/store/resultsStore";
 import { GlobalInputBar } from "@/components/layout/GlobalInputBar";
 import { ScoreCard } from "@/components/features/ScoreCard";
-import { Tooltip } from "@/components/ui/tooltip";
-import { toast } from "sonner";
 import {
   Building2, Loader2, Users, TrendingUp, ExternalLink,
-  DollarSign, CalendarDays, Layers, Globe, Cpu, RefreshCw, Zap,
+  DollarSign, CalendarDays, Layers, Globe, Cpu,
 } from "lucide-react";
 
 export default function CompanyResearchPage() {
-  const { companyName, sessionId } = useJobStore();
-  const { companyResearch: result, loadingCompany: loading, runCompanyResearch } = useResultsStore();
-
-  function handleResearch() {
-    if (!companyName.trim()) {
-      toast.error("Enter a company name in the Active Target above first.");
-      return;
-    }
-    runCompanyResearch(companyName, sessionId, (msg) => toast.error(msg));
-  }
+  const { companyResearch: result, loadingCompany: loading } = useResultsStore();
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <GlobalInputBar />
 
       {/* Page header */}
-      <div className="flex items-center justify-between px-6 pt-5 pb-4 shrink-0">
-        <div>
-          <div className="flex items-center gap-2 mb-0.5">
-            <Building2 className="h-4 w-4 text-indigo-500" />
-            <h1 className="text-[15px] font-semibold text-slate-900">Company Research</h1>
-          </div>
-          <p className="text-[13px] text-slate-500 pl-6">
-            Real-time intelligence scored against your preferences.
-          </p>
+      <div className="px-6 pt-5 pb-4 shrink-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <Building2 className="h-4 w-4 text-indigo-500" />
+          <h1 className="text-[15px] font-semibold text-slate-900">Company Research</h1>
         </div>
-        <Tooltip content={result ? "Re-run research for fresh data" : `Research ${companyName || "the company"}`}>
-          <button
-            onClick={handleResearch}
-            disabled={loading}
-            className={`
-              flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-medium
-              transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0
-              ${result
-                ? "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:shadow-sm"
-                : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm shadow-indigo-200"}
-            `}
-          >
-            {loading ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Researching…</>
-            ) : result ? (
-              <><RefreshCw className="h-3.5 w-3.5" /> Regenerate</>
-            ) : (
-              <><Zap className="h-3.5 w-3.5" /> Research{companyName ? ` "${companyName}"` : ""}</>
-            )}
-          </button>
-        </Tooltip>
+        <p className="text-[13px] text-slate-500 pl-6">
+          Real-time intelligence scored against your preferences.
+        </p>
       </div>
 
       {/* Body */}
