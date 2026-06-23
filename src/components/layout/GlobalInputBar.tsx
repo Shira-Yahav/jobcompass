@@ -1,57 +1,67 @@
 "use client";
 
 import { useJobStore } from "@/store/jobStore";
-import { Target } from "lucide-react";
+import { Target, Building2, FileText } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 
-/**
- * GlobalInputBar — rendered on Company Research, Position Research, and Tailor Resume pages.
- * Values persist to localStorage via Zustand persist middleware.
- */
-interface GlobalInputBarProps {
-  showJobDescription?: boolean;
-}
-
-export function GlobalInputBar({ showJobDescription = true }: GlobalInputBarProps) {
+export function GlobalInputBar() {
   const { companyName, jobDescription, setCompanyName, setJobDescription } =
     useJobStore();
 
   return (
-    <div className="border-b border-[--border] bg-[--background]/90 backdrop-blur-md px-6 py-4 shrink-0">
-      <div className="flex items-center gap-1.5 mb-3">
-        <Target className="h-3 w-3 text-indigo-400" />
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-[--muted-foreground]">
-          Active target
+    <div className="border-b border-slate-200 bg-slate-50 px-6 py-3 shrink-0">
+      {/* Label row */}
+      <div className="flex items-center gap-1.5 mb-2.5">
+        <div className="flex h-4 w-4 items-center justify-center rounded bg-indigo-600">
+          <Target className="h-2.5 w-2.5 text-white" />
+        </div>
+        <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-indigo-600">
+          Active Target
         </span>
-      </div>
-      <div className="flex gap-3">
-        <input
-          type="text"
-          placeholder="Company name"
-          value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
-          className="
-            h-9 w-52 shrink-0 rounded-md border border-[--border]
-            bg-[--input] px-3 text-sm text-[--foreground]
-            placeholder:text-[--muted-foreground] outline-none
-            focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/40
-            transition-colors
-          "
-        />
-        {showJobDescription && (
-          <textarea
-            placeholder="Paste the job description here…"
-            value={jobDescription}
-            onChange={(e) => setJobDescription(e.target.value)}
-            rows={3}
-            className="
-              flex-1 rounded-md border border-[--border]
-              bg-[--input] px-3 py-2 text-sm text-[--foreground]
-              placeholder:text-[--muted-foreground] outline-none
-              focus:border-indigo-500/60 focus:ring-1 focus:ring-indigo-500/40
-              resize-none overflow-y-auto max-h-32 transition-colors
-            "
-          />
+        {(companyName || jobDescription) && (
+          <span className="ml-1 h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
         )}
+      </div>
+
+      {/* Inputs */}
+      <div className="flex gap-2">
+        <Tooltip content="Company you're targeting" side="bottom">
+          <div className="relative w-48 shrink-0">
+            <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Company name"
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              className="
+                h-9 w-full rounded-md border border-slate-200 bg-white
+                pl-8 pr-3 text-[13px] text-slate-900
+                placeholder:text-slate-400 outline-none
+                focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200
+                transition-colors shadow-sm
+              "
+            />
+          </div>
+        </Tooltip>
+
+        <Tooltip content="Paste the full job description" side="bottom">
+          <div className="relative flex-1">
+            <FileText className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
+            <textarea
+              placeholder="Paste the job description here…"
+              value={jobDescription}
+              onChange={(e) => setJobDescription(e.target.value)}
+              rows={2}
+              className="
+                w-full rounded-md border border-slate-200 bg-white
+                pl-8 pr-3 py-2 text-[13px] text-slate-900
+                placeholder:text-slate-400 outline-none
+                focus:border-indigo-400 focus:ring-1 focus:ring-indigo-200
+                resize-none overflow-y-auto max-h-28 transition-colors shadow-sm
+              "
+            />
+          </div>
+        </Tooltip>
       </div>
     </div>
   );

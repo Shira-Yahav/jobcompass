@@ -1,7 +1,23 @@
 // ─── User Profile ────────────────────────────────────────────────────────────
 
 export type WorkStyle = "remote" | "hybrid" | "onsite";
-export type RoleType = "ic" | "manager" | "both";
+
+/** Per-dimension importance weights for fit scoring (1 = low, 10 = high) */
+export interface FitWeights {
+  salary: number;
+  company_type: number;
+  funding_stage: number;
+  domain: number;
+  work_style: number;
+}
+
+export const DEFAULT_FIT_WEIGHTS: FitWeights = {
+  salary: 5,
+  company_type: 5,
+  funding_stage: 5,
+  domain: 5,
+  work_style: 5,
+};
 
 /** The user's job-search preferences, stored in the `profiles` Supabase table */
 export interface UserProfile {
@@ -12,8 +28,8 @@ export interface UserProfile {
   company_types: string[];             // multi-select e.g. ["Startup", "Scale-up"]
   funding_stages: string[];            // multi-select e.g. ["Seed", "Series A"]
   domains: string[];                   // free-form tags e.g. ["SaaS", "Climate Tech"]
-  role_type: RoleType;
   work_style: WorkStyle;
+  fit_weights: FitWeights | null;
   resume_text: string | null;
   resume_filename: string | null;
   additional_context: string | null;

@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
 import { parseJsonResponse } from "@/lib/parseJson";
 import type { UserProfile, PositionResearch } from "@/types";
+import { DEFAULT_FIT_WEIGHTS } from "@/types";
 
 const anthropic = new Anthropic();
 
@@ -39,6 +40,12 @@ export async function POST(request: Request) {
     .single();
 
   const p = profile as UserProfile | null;
+  const weights = p?.fit_weights ?? DEFAULT_FIT_WEIGHTS;
+
+  // Normalise weights into percentage-style strings for the prompt
+  const totalWeight = Object.values(weights).reduce((a, b) => a + b, 0) || 1;
+  const weightPct = (key: keyof typeof weights) =>
+    `${Math.round((weights[key] / totalWeight) * 100)}%`;
 
   const preferenceSummary = p
     ? `
@@ -48,7 +55,6 @@ export async function POST(request: Request) {
 - Preferred funding stages: ${p.funding_stages?.join(", ") || "any"}
 - Preferred company sizes: ${p.company_sizes?.join(", ") || "any"}
 - Preferred domains/industries: ${p.domains?.join(", ") || "any"}
-- Role type: ${p.role_type || "not specified"}
 - Work style: ${p.work_style || "not specified"}
 `.trim()
     : "No preferences saved.";
@@ -56,6 +62,15 @@ export async function POST(request: Request) {
   const resumeSection = p?.resume_text
     ? `CANDIDATE RESUME:\n${p.resume_text}\n\nADDITIONAL CONTEXT:\n${p.additional_context || "None"}`
     : "No resume uploaded. Score experience match based on the preferences and role description alone.";
+
+  const weightNote = `
+SCORING WEIGHTS (user-configured importance; use these to bias the preference_match score):
+- Salary alignment: ${weightPct("salary")} weight
+- Company type alignment: ${weightPct("company_type")} weight
+- Funding stage alignment: ${weightPct("funding_stage")} weight
+- Domain/industry alignment: ${weightPct("domain")} weight
+- Work style alignment: ${weightPct("work_style")} weight
+`.trim();
 
   const prompt = `You are a senior technical recruiter and career strategist with 15+ years of experience hiring PMs, engineers, and operators at both startups and large enterprises. Your role is to give a candidate an honest, specific, and actionable assessment of how well they fit a role — not to encourage them, but to equip them with accurate intelligence.
 
@@ -71,6 +86,9 @@ ${preferenceSummary}
 
 ${resumeSection}
 
+━━━ SCORING CONFIGURATION ━━━
+${weightNote}
+
 ━━━ YOUR TASK ━━━
 Produce a structured fit assessment. Be direct and specific — vague feedback ("you have strong experience") is useless. Every claim must be grounded in the job description or the candidate's resume/preferences.
 
@@ -80,7 +98,7 @@ Return ONLY valid JSON matching this exact structure (no markdown fences, no ext
   "preference_match": {
     "score": number (0–100, integer),
     "explanation": "string — 3–4 sentences overall assessment of preference alignment",
-    "methodology": "string — one sentence on scoring approach",
+    "methodology": "string — one sentence on scoring approach including how the user-configured weights influenced this score",
     "dimensions": [
       {
         "label": "Job title / level",
@@ -111,11 +129,6 @@ Return ONLY valid JSON matching this exact structure (no markdown fences, no ext
         "label": "Work style",
         "status": "match|partial|mismatch|unknown",
         "detail": "string — '[preferred style] → [what the JD or company indicates]. [assessment]'"
-      },
-      {
-        "label": "Role type",
-        "status": "match|partial|mismatch|unknown",
-        "detail": "string — '[IC/manager/both] preferred → this role is [type]. [assessment]'"
       }
     ]
   },
@@ -168,7 +181,7 @@ RULES:
 - Do not soften negative assessments — a candidate who receives sugar-coated feedback wastes time applying to the wrong roles`;
 
   const message = await anthropic.messages.create({
-    model: "claude-sonnet-4-6",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 4096,
     messages: [{ role: "user", content: prompt }],
   });

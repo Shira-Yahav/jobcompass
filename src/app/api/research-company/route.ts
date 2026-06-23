@@ -48,7 +48,6 @@ export async function POST(request: Request) {
 - Preferred funding stages: ${p.funding_stages?.join(", ") || "any"}
 - Preferred company sizes: ${p.company_sizes?.join(", ") || "any"} employees
 - Preferred domains/industries: ${p.domains?.join(", ") || "any"}
-- Role type: ${p.role_type || "not specified"}
 - Work style: ${p.work_style || "not specified"}
 `.trim()
     : "No preferences saved.";

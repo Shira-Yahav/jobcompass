@@ -13,8 +13,8 @@ create table if not exists public.profiles (
   company_types text[] not null default '{}',        -- multi-select: ["Startup", "Corporate"]
   funding_stages text[] not null default '{}',       -- multi-select: ["Seed", "Series A"]
   domains text[] not null default '{}',              -- free-form tags: ["SaaS", "Climate Tech"]
-  role_type text not null default 'ic',              -- "ic" | "manager" | "both"
   work_style text not null default 'hybrid',         -- "remote" | "hybrid" | "onsite"
+  fit_weights jsonb not null default '{"salary":5,"company_type":5,"funding_stage":5,"domain":5,"work_style":5}'::jsonb,
   resume_text text,
   resume_filename text,
   additional_context text,
@@ -39,6 +39,9 @@ begin
   end if;
   if not exists (select 1 from information_schema.columns where table_name='profiles' and column_name='domains') then
     alter table public.profiles add column domains text[] not null default '{}';
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name='profiles' and column_name='fit_weights') then
+    alter table public.profiles add column fit_weights jsonb not null default '{"salary":5,"company_type":5,"funding_stage":5,"domain":5,"work_style":5}'::jsonb;
   end if;
 end $$;
 

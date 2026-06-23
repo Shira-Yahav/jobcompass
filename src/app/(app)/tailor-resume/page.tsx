@@ -10,8 +10,9 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  FileText, Loader2, Upload, CheckCircle2, SendHorizonal, Copy, Download, RefreshCw,
+  FileText, Loader2, Upload, CheckCircle2, SendHorizonal, Copy, Download, RefreshCw, Zap,
 } from "lucide-react";
+import { Tooltip } from "@/components/ui/tooltip";
 import type { ChatMessage } from "@/types";
 
 export default function TailorResumePage() {
@@ -150,32 +151,37 @@ export default function TailorResumePage() {
       <GlobalInputBar />
 
       {/* Page header */}
-      <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
+      <div className="flex items-center justify-between px-6 pt-5 pb-4 shrink-0">
         <div>
-          <h1 className="text-[15px] font-semibold text-slate-900">Tailor Resume</h1>
-          <p className="text-[13px] text-slate-500 mt-0.5">
+          <div className="flex items-center gap-2 mb-0.5">
+            <FileText className="h-4 w-4 text-indigo-500" />
+            <h1 className="text-[15px] font-semibold text-slate-900">Tailor Resume</h1>
+          </div>
+          <p className="text-[13px] text-slate-500 pl-6">
             AI-rewritten for this specific role. Chat to refine.
           </p>
         </div>
-        <button
-          onClick={handleTailor}
-          disabled={loadingResume || !uploadedFilename}
-          className={`
-            flex items-center gap-2 rounded-md px-4 py-2 text-[13px] font-medium
-            transition-colors disabled:opacity-50 disabled:cursor-not-allowed shrink-0
-            ${tailored
-              ? "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-              : "bg-indigo-600 text-white hover:bg-indigo-500"}
-          `}
-        >
-          {loadingResume && !tailored ? (
-            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Tailoring…</>
-          ) : tailored ? (
-            <><RefreshCw className="h-3.5 w-3.5" /> Regenerate</>
-          ) : (
-            <><FileText className="h-3.5 w-3.5" /> Tailor resume</>
-          )}
-        </button>
+        <Tooltip content={!uploadedFilename ? "Upload your resume first" : tailored ? "Re-tailor for a fresh version" : "Rewrite your resume for this role"}>
+          <button
+            onClick={handleTailor}
+            disabled={loadingResume || !uploadedFilename}
+            className={`
+              flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-medium
+              transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0
+              ${tailored
+                ? "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:shadow-sm"
+                : "bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm shadow-indigo-200"}
+            `}
+          >
+            {loadingResume && !tailored ? (
+              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Tailoring…</>
+            ) : tailored ? (
+              <><RefreshCw className="h-3.5 w-3.5" /> Regenerate</>
+            ) : (
+              <><Zap className="h-3.5 w-3.5" /> Tailor resume</>
+            )}
+          </button>
+        </Tooltip>
       </div>
 
       {/* Body */}
