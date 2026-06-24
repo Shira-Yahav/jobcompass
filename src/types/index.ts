@@ -132,6 +132,7 @@ export interface JobApplication {
   job_posting_url: string | null;
   resume_submitted_filename: string | null;
   resume_submitted_text: string | null;
+  resume_storage_path: string | null;
   date_started: string;           // ISO date string e.g. "2026-06-24"
   stage: ApplicationStage;
   status: ApplicationStatus;
