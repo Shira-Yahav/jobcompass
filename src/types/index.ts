@@ -148,7 +148,7 @@ export type PracticeQuestionType =
   | "behavioral" | "product_sense" | "situational" | "technical" | "company_specific" | "motivation";
 
 export type PracticeMessageType =
-  | "question" | "answer" | "feedback" | "clarification_response" | "question_repeat" | "acknowledgment" | "session_complete" | "next_question";
+  | "question" | "answer" | "feedback" | "clarification_response" | "question_repeat" | "acknowledgment" | "session_complete" | "next_question" | "follow_up";
 
 export type FeedbackMode = "as_you_go" | "end_of_session";
 

@@ -12,10 +12,18 @@ interface AiResponseMessage {
 }
 
 interface AiResponse {
-  is_clarifying: boolean;
+  classification: "clarifying" | "follow_up" | "complete";
   messages: AiResponseMessage[];
-  next_question_index: number; // -1 = session complete, same as currentQIndex = no advance
+  next_question_index: number;
 }
+
+const STAGE_PERSONA: Record<string, string> = {
+  applied:        "Talent Acquisition Specialist",
+  intro_call:     "Technical Recruiter",
+  hiring_manager: "Director of Product",
+  technical:      "Senior Product Manager",
+  panel:          "Cross-functional Panel Interviewer",
+};
 
 export async function POST(
   request: Request,
@@ -34,113 +42,148 @@ export async function POST(
 
   const { data: session } = await supabase
     .from("practice_sessions")
-    .select("*, job_applications(company_name, position, resume_submitted_text)")
+    .select("*, job_applications(company_name, position, resume_submitted_text, job_description)")
     .eq("id", sessionId)
     .eq("user_id", user.id)
     .single();
 
   if (!session) return Response.json({ error: "Session not found" }, { status: 404 });
 
-  const app = session.job_applications as { company_name: string; position: string; resume_submitted_text: string | null };
-  const messages = session.messages as PracticeMessage[];
+  const app = session.job_applications as {
+    company_name: string;
+    position: string;
+    resume_submitted_text: string | null;
+    job_description: string | null;
+  };
+  const messages     = session.messages as PracticeMessage[];
   const feedbackMode = session.feedback_mode as string;
   const currentQIndex = isRetry && retryQuestionIndex !== undefined
     ? retryQuestionIndex
     : session.current_question_index as number;
 
-  const currentQuestion = (session.questions as Array<{ index: number; text: string }>)[currentQIndex];
-  const totalQuestions = (session.questions as Array<unknown>).length;
-  const isLastQuestion = currentQIndex >= totalQuestions - 1;
+  const allQs   = session.questions as Array<{ index: number; text: string; type: string }>;
+  const currentQ = allQs[currentQIndex];
+  const totalQs  = allQs.length;
+  const isLastQ  = currentQIndex >= totalQs - 1;
+  const persona  = STAGE_PERSONA[session.stage] ?? "Product Manager";
 
-  const allQuestions = (session.questions as Array<{ index: number; text: string }>)
-    .map(q => `Q${q.index + 1}: ${q.text}`)
-    .join("\n");
-
+  // Build a readable conversation history
   const conversationHistory = messages
+    .filter(m => m.type !== "acknowledgment") // skip the opening intro
     .map(m => {
-      if (m.role === "user") return `Candidate: ${m.content}`;
-      if (m.type === "question" || m.type === "next_question") return `You asked: ${m.content}`;
-      if (m.type === "feedback" && m.score) return `[You gave feedback — ${m.score.overall}/10]`;
-      if (m.type === "acknowledgment") return `You said: ${m.content}`;
-      return `You: ${m.content}`;
+      if (m.role === "user")               return `Candidate: ${m.content}`;
+      if (m.type === "question")           return `Interviewer (Q${(m.question_index ?? 0) + 1}): ${m.content}`;
+      if (m.type === "next_question")      return `Interviewer (Q${(m.question_index ?? 0) + 1}): ${m.content}`;
+      if (m.type === "follow_up")          return `Interviewer (follow-up): ${m.content}`;
+      if (m.type === "question_repeat")    return `Interviewer (re-asked): ${m.content}`;
+      if (m.type === "feedback" && m.score)
+        return `[Feedback given: ${m.score.overall}/10 — ${m.score.feedback_text}]`;
+      if (m.type === "clarification_response") return `Interviewer: ${m.content}`;
+      return null;
     })
+    .filter(Boolean)
     .join("\n");
 
-  const resumeContext = app.resume_submitted_text
-    ? `\nCandidate resume (brief reference):\n${app.resume_submitted_text.slice(0, 1000)}`
+  const resumeSnippet = app.resume_submitted_text
+    ? `\nCANDIDATE BACKGROUND (resume excerpt):\n${app.resume_submitted_text.slice(0, 800)}`
     : "";
 
-  const prompt = `You are conducting a ${session.stage.replace("_", " ")} interview at ${app.company_name || "the company"} for the ${app.position || "PM"} role. You are a real, warm, direct human interviewer — not a bot.
-${resumeContext}
+  const jdSnippet = app.job_description
+    ? `\nROLE CONTEXT (JD excerpt):\n${app.job_description.slice(0, 600)}`
+    : "";
 
-Your question list (never reveal or list these):
-${allQuestions}
+  // ─── Prompt ───────────────────────────────────────────────────────────────
+  // This is the full prompt for the conversation turn.
+  // Parameters injected: persona, company, role, resume, JD, full history, current question.
 
-Currently on: Q${currentQIndex + 1} — "${currentQuestion?.text ?? "wrap up"}"
-${isRetry ? `The candidate is RETRYING this question — evaluate the new attempt.` : ""}
-Questions remaining after this: ${totalQuestions - currentQIndex - 1}
-Feedback mode: ${feedbackMode === "as_you_go" ? "score each substantive answer immediately" : "no scores during the interview — save all feedback for the end"}
+  const prompt = `You are a ${persona} at ${app.company_name || "the company"}, conducting a ${session.stage.replace(/_/g, " ")} interview for the ${app.position || "PM"} role. You are professional, direct, and genuinely interested in understanding this candidate — not reciting a script.
+${resumeSnippet}
+${jdSnippet}
 
-Conversation so far:
-${conversationHistory}
+YOUR QUESTION LIST (private — never reveal or list these):
+${allQs.map(q => `Q${q.index + 1} [${q.type}]: ${q.text}`).join("\n")}
 
-Candidate just said: "${userMessage}"
+Currently on: Q${currentQIndex + 1} — "${currentQ?.text ?? "closing"}"
+Questions remaining after this: ${totalQs - currentQIndex - 1}
+${isRetry ? `The candidate is retrying Q${currentQIndex + 1}.` : ""}
+Feedback mode: ${feedbackMode === "as_you_go" ? "Score each answer when you complete a question (not on follow-ups)" : "Do not score during the interview — acknowledge and move on"}
 
----
+CONVERSATION SO FAR:
+${conversationHistory || "(Interview just started)"}
 
-Step 1 — Classify: is this a clarifying question (asking what you mean, asking for context) or a substantive answer attempt?
-- Clarifying: "What do you mean by X?", "Can you be more specific?", short questions about the question itself
-- Substantive: any actual answer attempt, even a short or incomplete one
+THE CANDIDATE JUST SAID:
+"${userMessage}"
 
-Step 2 — Respond naturally, like a real interviewer would:
-- Keep responses short and human. No bullet points. Conversational sentences.
-- If clarifying: answer their question briefly, then re-ask your question naturally
-- If substantive answer:
-  ${feedbackMode === "as_you_go"
-    ? `- Give scored feedback first, then bridge naturally to the next question (or close if last)`
-    : `- Briefly acknowledge ("Got it, thanks") and move to the next question, or close if last`}
-- Never say "Great answer!" or generic praise — be specific or skip it
-- When moving to the next question, ask it naturally as part of conversation, not as "Question 4:"
+━━━ YOUR DECISION ━━━
+
+Step 1 — Classify this message:
+
+A) CLARIFYING — They're asking about the question itself ("What do you mean by X?", "Can you be more specific about Y?")
+   → Answer their question briefly and re-ask
+
+B) FOLLOW_UP — They gave a substantive answer, but it's worth probing deeper. Use this when:
+   - The answer is vague or generic and you'd expect specifics from a strong candidate
+   - They mentioned something specific (a metric, a decision, a conflict) and you want the story
+   - Their answer raises an interesting thread ("you mentioned pushback from eng — what happened there?")
+   IMPORTANT: Only ask one follow-up per question. If you already asked a follow-up on this question (visible in conversation history), treat the next answer as COMPLETE regardless.
+
+C) COMPLETE — The answer is sufficient to move on. Use this when:
+   - The answer was thorough and specific
+   - You already asked a follow-up on this question
+   - It's a retry
+
+Step 2 — Respond as that interviewer:
+
+Tone: Professional, warm, direct. Real sentences, no bullet points. No hollow openers like "Great point!" or "That's a really interesting perspective." If you want to acknowledge something, be specific ("That's a clear example of...") or skip it.
+
+For follow-ups: pick up the specific thread. "You mentioned X — can you walk me through what you actually decided there?" Not a generic probe.
+
+For transitions to the next question: connect it naturally. "That makes sense. Let me shift gears —" or "Okay, good context. Next I want to ask about..."
+
+For closings: 1–2 warm sentences. Tell them what happens next ("We'll be in touch within the week").
 
 ${feedbackMode === "as_you_go" ? `
-Scoring (only for substantive answers):
-structure: 0–10 — does the answer have a clear structure (STAR, framework, etc.)?
-relevance: 0–10 — does it actually answer what was asked?
-depth: 0–10 — specific examples, real numbers, concrete details?
-clarity: 0–10 — easy to follow, not rambling?
-overall: 0–10 — holistic judgment
-feedback_text: 2 sentences max. Specific and actionable. Reference what they actually said.
+SCORING (only when classification = COMPLETE and you're moving to next question or closing):
+- structure (0–10): clear framework, STAR, or logical flow
+- relevance (0–10): actually answered what was asked
+- depth (0–10): specific examples, real metrics, concrete outcomes
+- clarity (0–10): easy to follow, not rambling
+- overall (0–10): holistic judgment
+- feedback_text: 2 sentences max. Specific and actionable. Reference what they said. Professional tone.
 ` : ""}
 
-Step 3 — Determine next_question_index:
-- If this was CLARIFYING → next_question_index = ${currentQIndex} (do NOT advance, same question)
-- If this was a SUBSTANTIVE ANSWER and it's NOT the last question → next_question_index = ${currentQIndex + 1}
-- If this was a SUBSTANTIVE ANSWER and it IS the last question → next_question_index = -1
+Step 3 — Set next_question_index:
+- A (clarifying) → ${currentQIndex} (no advance)
+- B (follow_up) → ${currentQIndex} (no advance)
+- C (complete) and NOT last question → ${currentQIndex + 1}
+- C (complete) and IS last question → -1
+
+━━━ OUTPUT ━━━
 
 Return ONLY valid JSON (no markdown):
 {
-  "is_clarifying": true|false,
+  "classification": "clarifying|follow_up|complete",
   "messages": [
     {
-      "type": "clarification_response|question_repeat|acknowledgment|feedback|next_question|session_complete",
-      "content": "your response here",
+      "type": "clarification_response|question_repeat|follow_up|acknowledgment|feedback|next_question|session_complete",
+      "content": "...",
       "score": { "overall": 0, "structure": 0, "relevance": 0, "depth": 0, "clarity": 0, "feedback_text": "" }
     }
   ],
-  "next_question_index": <number you determined in Step 3>
+  "next_question_index": <your Step 3 value>
 }
 
-Message sequence rules:
-- Clarifying → [clarification_response, question_repeat]
-- Substantive + as_you_go + not last → [feedback, next_question]
-- Substantive + as_you_go + last → [feedback, session_complete]
-- Substantive + end_of_session + not last → [acknowledgment, next_question]
-- Substantive + end_of_session + last → [session_complete]
-- session_complete: warm, 1-2 sentence close — tell them what happens next`;
+Message sequence by classification:
+- clarifying → [clarification_response, question_repeat]
+- follow_up → [follow_up]
+- complete + as_you_go + not last → [feedback, next_question]
+- complete + as_you_go + last → [feedback, session_complete]
+- complete + end_of_session + not last → [next_question]  (brief natural transition, no ack needed)
+- complete + end_of_session + last → [session_complete]`;
 
   const msg = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 1024,
+    max_tokens: 1200,
     messages: [{ role: "user", content: prompt }],
   });
 
@@ -169,7 +212,6 @@ Message sequence rules:
   }));
 
   const updatedMessages = [...messages, userMsg, ...newAiMessages];
-  // If clarifying, next_question_index equals currentQIndex — don't advance DB state
   const nextQIndex = aiResponse.next_question_index === -1
     ? currentQIndex
     : aiResponse.next_question_index;

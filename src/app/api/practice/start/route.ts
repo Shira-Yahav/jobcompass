@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { tavily } from "@tavily/core";
 import { createClient } from "@/lib/supabase/server";
 import { parseJsonResponse } from "@/lib/parseJson";
 import type { PracticeQuestion, PracticeMessage, FeedbackMode, ApplicationStage } from "@/types";
@@ -9,45 +10,74 @@ const QUESTION_COUNT: Record<string, number> = {
   applied: 8, intro_call: 8, hiring_manager: 10, technical: 10, panel: 12,
 };
 
-const STAGE_GUIDE: Record<string, string> = {
-  applied: `
-STAGE: General / Initial Screen
-Focus: Why this company, why this role, career story and trajectory, PM fundamentals.
-Question mix: 30% motivation/fit, 30% career narrative, 40% basic PM competency.
-Tone: Conversational, exploratory — the interviewer is deciding whether to move forward.`,
-
-  intro_call: `
-STAGE: Recruiter / Intro Call
-Focus: High-level background, culture fit, compensation alignment, logistics.
-Question mix: 40% background & motivation, 30% culture & working style, 30% role expectations.
-Tone: Friendly, efficient — recruiter is qualifying for the hiring manager.`,
-
-  hiring_manager: `
-STAGE: Hiring Manager Interview
-Focus: Deep behavioral questions with the STAR framework, leadership under pressure, cross-functional influence, strategic thinking, impact and ownership.
-Question mix: 50% behavioral (STAR), 25% situational, 25% strategic/product thinking.
-Tone: Conversational but evaluative — looking for leadership potential and culture fit at depth.
-Examples of strong questions for this stage:
-- "Tell me about a time you had to make a product decision with incomplete data and tight deadlines."
-- "Walk me through a situation where you had to push back on engineering's technical constraints."
-- "Describe the most complex stakeholder situation you've managed — what made it hard?"`,
-
-  technical: `
-STAGE: Technical / Product Interview
-Focus: Product sense, metrics, prioritization frameworks, root-cause analysis, data-driven decisions.
-Question mix: 40% product sense (design/improve a product), 30% metrics & analytics, 30% prioritization.
-Tone: Case-study style — interviewer wants to hear structured thinking out loud.
-Examples of strong questions for this stage:
-- "How would you define success metrics for [specific feature relevant to this company]?"
-- "Walk me through how you'd prioritize 5 competing features with limited engineering bandwidth."
-- "If our [relevant metric] dropped 20% overnight, how would you diagnose it?"`,
-
-  panel: `
-STAGE: Panel Interview
-Focus: Variety — each interviewer owns a different angle. Expect behavioral, product sense, cross-functional, and leadership questions mixed together.
-Question mix: 25% behavioral, 25% product design, 25% metrics/analytical, 25% leadership & conflict.
-Tone: More formal — multiple interviewers, less repetition, each question must count.`,
+// Who is interviewing and what they care about at each stage
+const INTERVIEWER_PERSONA: Record<string, { title: string; focus: string; questionMix: string; probeStyle: string }> = {
+  applied: {
+    title: "Talent Acquisition Specialist",
+    focus: "Assessing career motivation, baseline PM competency, and cultural alignment before passing to the hiring team.",
+    questionMix: "30% motivation & fit, 30% career story, 40% foundational PM skills",
+    probeStyle: "Warm and exploratory. You're deciding whether to move this person forward, not testing them deeply yet.",
+  },
+  intro_call: {
+    title: "Technical Recruiter",
+    focus: "Qualifying the candidate on background, logistics, compensation expectations, and whether they're genuinely excited about this company.",
+    questionMix: "40% background & motivation, 30% culture & working style, 30% logistics and expectations",
+    probeStyle: "Efficient and friendly. You have 30 minutes — you want signal fast.",
+  },
+  hiring_manager: {
+    title: "Director of Product / VP of Product",
+    focus: "Deep evaluation of leadership, judgment under uncertainty, cross-functional influence, and strategic thinking. You are assessing whether this person can own outcomes — not just execute tasks.",
+    questionMix: "50% behavioral (STAR — leadership, conflict, ambiguity), 25% situational judgment, 25% strategic product thinking",
+    probeStyle: "Direct and probing. When an answer is vague or generic, you push: 'What specifically did you decide, and why?' You care about ownership and impact, not process.",
+  },
+  technical: {
+    title: "Senior Product Manager / Product Lead",
+    focus: "Evaluating product thinking: how the candidate frames problems, defines metrics, makes prioritization trade-offs, and reasons analytically about user behavior and business outcomes.",
+    questionMix: "35% product design/sense, 30% metrics & data analysis, 35% prioritization frameworks",
+    probeStyle: "Case-study style. You present scenarios and listen for structured thinking. You're not looking for a single right answer — you want to hear their reasoning process and whether they ask the right questions.",
+  },
+  panel: {
+    title: "Cross-functional Panel (Design, Engineering, Data, PM)",
+    focus: "Each panelist tests a different dimension. Expect behavioral depth, product creativity, data fluency, and leadership presence in one session.",
+    questionMix: "25% behavioral, 25% product design, 25% metrics/analytics, 25% cross-functional leadership",
+    probeStyle: "More formal. Questions are precise and distinct — panelists coordinate to avoid overlap. Expect follow-ups from different angles.",
+  },
 };
+
+async function searchCompanyContext(companyName: string): Promise<string> {
+  if (!companyName || !process.env.TAVILY_API_KEY) return "";
+
+  try {
+    const tv = tavily({ apiKey: process.env.TAVILY_API_KEY });
+
+    // Two targeted searches run in parallel
+    const [companySearch, interviewSearch] = await Promise.all([
+      tv.search(`${companyName} company product what they do business model funding`, {
+        maxResults: 4,
+        searchDepth: "basic",
+      }),
+      tv.search(`${companyName} product manager interview questions process Glassdoor`, {
+        maxResults: 3,
+        searchDepth: "basic",
+      }),
+    ]);
+
+    const allResults = [...companySearch.results, ...interviewSearch.results];
+    const seen = new Set<string>();
+    const lines: string[] = [];
+
+    for (const r of allResults) {
+      if (!seen.has(r.url)) {
+        seen.add(r.url);
+        lines.push(`SOURCE: ${r.url}\n${r.content?.slice(0, 400) ?? ""}`);
+      }
+    }
+
+    return lines.join("\n\n---\n\n");
+  } catch {
+    return "";
+  }
+}
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -60,7 +90,7 @@ export async function POST(request: Request) {
     feedbackMode: FeedbackMode;
   };
 
-  // Load application + profile in parallel
+  // Load app + profile + web search in parallel
   const [{ data: app }, { data: profile }] = await Promise.all([
     supabase
       .from("job_applications")
@@ -77,55 +107,72 @@ export async function POST(request: Request) {
 
   if (!app) return Response.json({ error: "Application not found" }, { status: 404 });
 
+  const companyContext = await searchCompanyContext(app.company_name);
+
   const count = QUESTION_COUNT[stage] ?? 10;
-  // Prefer submitted resume; fall back to profile resume
   const resumeText = app.resume_submitted_text ?? (profile as { resume_text: string | null } | null)?.resume_text ?? null;
+  const persona = INTERVIEWER_PERSONA[stage] ?? INTERVIEWER_PERSONA.applied;
 
-  const jdBlock    = app.job_description  ? `\n\nJOB DESCRIPTION (read carefully — reference it in questions):\n${app.job_description.slice(0, 4000)}`  : "";
-  const resumeBlock = resumeText          ? `\n\nCANDIDATE RESUME (read carefully — reference specific experiences):\n${resumeText.slice(0, 3000)}` : "";
-  const stageGuide  = STAGE_GUIDE[stage] ?? STAGE_GUIDE.applied;
+  // ─── Prompt ───────────────────────────────────────────────────────────────
+  // This is the full prompt sent to Sonnet. Everything the AI knows is injected here.
 
-  const genPrompt = `You are a senior PM interviewer at ${app.company_name || "a tech company"} interviewing a candidate for a ${app.position || "Product Manager"} role.
-${stageGuide}
-${jdBlock}
-${resumeBlock}
+  const prompt = `You are preparing to interview a candidate for a ${app.position || "Product Manager"} role at ${app.company_name || "the company"}.
 
-YOUR TASK: Generate exactly ${count} interview questions for this specific candidate and role.
+YOUR ROLE: ${persona.title}
+YOUR FOCUS: ${persona.focus}
+YOUR QUESTION MIX: ${persona.questionMix}
+YOUR STYLE: ${persona.probeStyle}
 
-LENGTH RULE (most important): Each question must be 1 sentence, 2 sentences maximum. Short. Direct. How a real person actually asks — not a formal written question. No preambles like "Given your background in X and the fact that Y..." Just ask it.
+━━━ COMPANY CONTEXT (from web search) ━━━
+${companyContext
+  ? `Use this to make questions specific to ${app.company_name}'s actual product, business model, stage, and challenges:\n\n${companyContext}`
+  : `No web data available. Use your knowledge of ${app.company_name || "the company"} and infer from the JD.`}
 
-GOOD: "What's the metric you'd use to measure success for a new onboarding flow?"
-GOOD: "Tell me about a time you had to ship something you didn't fully agree with."
-BAD: "Given the complexity of product decisions at a company like ${app.company_name || "this company"} and considering your background, could you walk me through a comprehensive example of how you would approach prioritization when faced with multiple competing stakeholders?"
+━━━ JOB DESCRIPTION ━━━
+${app.job_description
+  ? `Reference specific responsibilities, required skills, and keywords from this JD when writing questions:\n\n${app.job_description.slice(0, 4000)}`
+  : "No JD provided. Base questions on the company name, role title, and stage."}
 
-QUALITY RULES:
-1. Every question must be grounded in the JD, the candidate's resume, or ${app.company_name || "this company"}'s specific context — no generic questions
-2. Vary types per the stage guide — don't cluster all behavioral or all product
-3. Progress from warm-up to harder
+━━━ CANDIDATE RESUME ━━━
+${resumeText
+  ? `Reference specific past roles, companies, projects, and metrics from this resume:\n\n${resumeText.slice(0, 3000)}`
+  : "No resume provided. Base questions on company and JD context."}
+
+━━━ YOUR TASK ━━━
+Generate exactly ${count} interview questions for this specific candidate and role.
+
+QUESTION WRITING RULES:
+1. LENGTH: 1–2 sentences maximum. How a real person asks, not formal prose.
+   ✓ "Walk me through how you'd set the north star metric for ${app.company_name || "this product"}."
+   ✓ "You mentioned leading a cross-functional launch at [their company from resume] — how did you handle conflicting priorities?"
+   ✗ "Could you please elaborate on a comprehensive example from your professional background that demonstrates your ability to manage complex stakeholder dynamics in a product development context?"
+
+2. SPECIFICITY: Every question must be grounded in at least one of:
+   - Something specific from the JD (a skill, responsibility, or keyword)
+   - Something specific from the candidate's resume (a role, project, company, or metric)
+   - Something specific about ${app.company_name}'s product, market, or business model
+
+3. VARIETY: Spread across question types per your mix. Don't cluster 5 behavioral questions in a row.
+
+4. PROGRESSION: Warm-up to harder. First 2 questions ease them in.
 
 INTRO RULES:
-- 2-3 conversational sentences. Sounds like a real person, not a script.
-- Mention the company name and stage naturally. Don't ask a question in the intro.
-
-${!resumeText ? "No resume available — base questions on the JD and company context only." : ""}
-${!app.job_description ? "No JD available — base questions on the company name, role title, and stage." : ""}
+- 2–3 sentences. Professional but warm. Sounds like a real ${persona.title}.
+- Mention your name, your role, and what this interview will cover.
+- Do NOT ask a question in the intro.
 
 Return ONLY valid JSON (no markdown, no explanation):
 {
-  "intro": "Hi [Name]! I'm [FirstName LastName], [their title] at ${app.company_name || "the company"}. Thanks for making time today...",
+  "intro": "...",
   "questions": [
-    {
-      "index": 0,
-      "text": "...",
-      "type": "behavioral|product_sense|situational|technical|company_specific|motivation"
-    }
+    { "index": 0, "text": "...", "type": "behavioral|product_sense|situational|technical|company_specific|motivation" }
   ]
 }`;
 
   const genMsg = await anthropic.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 3000,
-    messages: [{ role: "user", content: genPrompt }],
+    messages: [{ role: "user", content: prompt }],
   });
 
   const genText = genMsg.content[0].type === "text" ? genMsg.content[0].text : "";
@@ -134,7 +181,7 @@ Return ONLY valid JSON (no markdown, no explanation):
   try {
     const parsed = parseJsonResponse<{ intro: string; questions: PracticeQuestion[] }>(genText);
     questions = parsed.questions;
-    intro = parsed.intro ?? `Hi! I'm your interviewer at ${app.company_name || "the company"}. Thanks for joining — let's get started.`;
+    intro = parsed.intro ?? `Hi, I'm your interviewer at ${app.company_name || "the company"}. Thanks for joining — let's get started.`;
   } catch {
     return Response.json({ error: "Failed to generate questions" }, { status: 500 });
   }

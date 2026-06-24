@@ -126,6 +126,16 @@ function MessageBubble({ message, onRetry }: { message: PracticeMessage; onRetry
       </div>
     );
   }
+  if (message.type === "follow_up") {
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[80%] rounded-2xl rounded-tl-sm border border-amber-100 bg-amber-50 px-4 py-3 text-[13px] leading-relaxed text-slate-800">
+          <span className="text-[10px] font-mono font-semibold uppercase tracking-widest text-amber-500 block mb-1">Follow-up</span>
+          {message.content}
+        </div>
+      </div>
+    );
+  }
   if (message.type === "question_repeat") {
     return (
       <div className="flex justify-start">
