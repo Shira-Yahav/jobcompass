@@ -1,28 +1,65 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { History, Building2, Briefcase, FileText, ChevronDown, ChevronUp, Loader2, Trash2, ExternalLink } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { History, Building2, Briefcase, FileText, ChevronDown, ChevronUp, Loader2, Trash2, ExternalLink, BookOpen, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ScoreCard } from "@/components/features/ScoreCard";
-import type { HistoryEntry } from "@/types";
+import { createClient } from "@/lib/supabase/client";
+import type { HistoryEntry, PracticeMessage, PracticeScore } from "@/types";
+
+interface PracticeSessionSummary {
+  id: string;
+  application_id: string;
+  stage: string;
+  feedback_mode: string;
+  current_question_index: number;
+  completed_at: string | null;
+  created_at: string;
+  questions: Array<{ index: number; text: string; type: string }>;
+  messages: PracticeMessage[];
+  job_applications: { company_name: string; position: string } | null;
+}
 
 export default function HistoryPage() {
+  const supabase = createClient();
+  const router = useRouter();
+
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
+  const [sessions, setSessions] = useState<PracticeSessionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/history")
-      .then((r) => r.json())
-      .then((data) => {
+    async function load() {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const [historyRes, sessionsRes] = await Promise.all([
+        fetch("/api/history"),
+        user
+          ? supabase
+              .from("practice_sessions")
+              .select("id, application_id, stage, feedback_mode, current_question_index, completed_at, created_at, questions, messages, job_applications(company_name, position)")
+              .eq("user_id", user.id)
+              .order("created_at", { ascending: false })
+              .limit(20)
+          : Promise.resolve({ data: [] }),
+      ]);
+
+      if (historyRes.ok) {
+        const data = await historyRes.json();
         if (Array.isArray(data)) setEntries(data);
-      })
-      .catch(() => toast.error("Could not load history."))
-      .finally(() => setLoading(false));
-  }, []);
+      }
+      if (sessionsRes.data) {
+        setSessions(sessionsRes.data as unknown as PracticeSessionSummary[]);
+      }
+      setLoading(false);
+    }
+    load().catch(() => { toast.error("Could not load history."); setLoading(false); });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleDelete(id: string) {
     setDeleting(id);
@@ -55,7 +92,7 @@ export default function HistoryPage() {
         <p className="text-[13px] text-slate-500">All your past job searches and analysis results.</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="flex-1 overflow-y-auto px-6 py-6 flex flex-col gap-8 max-w-2xl">
         {loading && (
           <div className="flex h-40 items-center justify-center gap-2 text-[13px] text-slate-500">
             <Loader2 className="h-4 w-4 animate-spin text-indigo-500" />
@@ -63,25 +100,49 @@ export default function HistoryPage() {
           </div>
         )}
 
-        {!loading && entries.length === 0 && (
-          <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-slate-200 text-[13px] text-slate-400">
-            No searches yet — run Company Research or Position Research to start building history.
-          </div>
-        )}
+        {!loading && (
+          <>
+            {/* Research history */}
+            {entries.length > 0 && (
+              <div>
+                <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-slate-400 mb-3">Research</p>
+                <div className="flex flex-col gap-3">
+                  {entries.map((entry) => (
+                    <HistoryCard
+                      key={entry.id}
+                      entry={entry}
+                      isExpanded={expanded === entry.id}
+                      isDeleting={deleting === entry.id}
+                      onToggle={() => toggle(entry.id)}
+                      onDelete={() => handleDelete(entry.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
-        {!loading && entries.length > 0 && (
-          <div className="flex flex-col gap-3 max-w-2xl">
-            {entries.map((entry) => (
-              <HistoryCard
-                key={entry.id}
-                entry={entry}
-                isExpanded={expanded === entry.id}
-                isDeleting={deleting === entry.id}
-                onToggle={() => toggle(entry.id)}
-                onDelete={() => handleDelete(entry.id)}
-              />
-            ))}
-          </div>
+            {/* Practice history */}
+            {sessions.length > 0 && (
+              <div>
+                <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-slate-400 mb-3">Practice Sessions</p>
+                <div className="flex flex-col gap-3">
+                  {sessions.map(s => (
+                    <PracticeSessionCard
+                      key={s.id}
+                      session={s}
+                      onContinue={() => router.push(`/practice/${s.application_id}`)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {entries.length === 0 && sessions.length === 0 && (
+              <div className="flex h-40 items-center justify-center rounded-lg border border-dashed border-slate-200 text-[13px] text-slate-400">
+                No history yet — run Company Research, Position Research, or practice an interview to get started.
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -296,6 +357,63 @@ function Section({ icon: Icon, title, children }: { icon: React.ElementType; tit
         <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{title}</span>
       </div>
       {children}
+    </div>
+  );
+}
+
+// ─── Practice Session Card ─────────────────────────────────────────────────────
+
+const STAGE_LABELS: Record<string, string> = {
+  intro_call: "Intro Call", hiring_manager: "Hiring Manager",
+  technical: "Technical", panel: "Panel", applied: "General",
+};
+
+function PracticeSessionCard({
+  session, onContinue,
+}: {
+  session: PracticeSessionSummary;
+  onContinue: () => void;
+}) {
+  const company = session.job_applications?.company_name ?? "Unknown";
+  const role    = session.job_applications?.position ?? "";
+  const date    = new Date(session.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const total   = session.questions.length;
+  const answered = session.current_question_index;
+  const done    = !!session.completed_at;
+
+  // Compute average score from feedback messages
+  const feedbackMsgs = session.messages.filter(m => m.type === "feedback" && m.score) as Array<PracticeMessage & { score: PracticeScore }>;
+  const avgScore = feedbackMsgs.length > 0
+    ? Math.round(feedbackMsgs.reduce((sum, m) => sum + (m.score?.overall ?? 0), 0) / feedbackMsgs.length * 10) / 10
+    : null;
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white shadow-sm px-4 py-3.5 flex items-center gap-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-indigo-50 border border-indigo-100">
+        <BookOpen className="h-4 w-4 text-indigo-500" />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-0.5">
+          <p className="text-[13px] font-semibold text-slate-900 truncate">{company}</p>
+          {role && <span className="text-[11px] text-slate-400 truncate">{role}</span>}
+        </div>
+        <div className="flex items-center gap-3 text-[11px] text-slate-400">
+          <span>{STAGE_LABELS[session.stage] ?? session.stage}</span>
+          <span>·</span>
+          <span>{done ? <span className="text-emerald-600 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />Completed</span> : `${answered}/${total} answered`}</span>
+          {avgScore !== null && <><span>·</span><span className="font-semibold text-slate-600">{avgScore}/10 avg</span></>}
+          <span>·</span>
+          <span>{date}</span>
+        </div>
+      </div>
+
+      <button
+        onClick={onContinue}
+        className="shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[12px] font-medium text-indigo-600 hover:bg-indigo-100 transition-colors"
+      >
+        {done ? "Practice again" : "Continue"}
+      </button>
     </div>
   );
 }

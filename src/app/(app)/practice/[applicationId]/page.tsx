@@ -28,6 +28,15 @@ function stageLabel(v: string) {
   return STAGE_OPTIONS.find(s => s.value === v)?.label ?? v;
 }
 
+const TYPE_META: Record<string, { label: string; cls: string }> = {
+  behavioral:       { label: "Behavioral",    cls: "bg-purple-50 text-purple-600 border-purple-100" },
+  product_sense:    { label: "Product",       cls: "bg-blue-50 text-blue-600 border-blue-100" },
+  situational:      { label: "Situational",   cls: "bg-amber-50 text-amber-600 border-amber-100" },
+  technical:        { label: "Technical",     cls: "bg-red-50 text-red-600 border-red-100" },
+  company_specific: { label: "Company",       cls: "bg-emerald-50 text-emerald-600 border-emerald-100" },
+  motivation:       { label: "Motivation",    cls: "bg-indigo-50 text-indigo-600 border-indigo-100" },
+};
+
 const SCORE_DIMS: { key: keyof Omit<PracticeScore, "feedback_text" | "overall">; label: string }[] = [
   { key: "structure", label: "Structure" },
   { key: "relevance", label: "Relevance" },
@@ -171,7 +180,7 @@ export default function PracticePage() {
   const [stage, setStage]               = useState<ApplicationStage>("intro_call");
   const [stageOpen, setStageOpen]       = useState(false);
   const [feedbackMode, setFeedbackMode] = useState<FeedbackMode>("as_you_go");
-  const [panelOpen, setPanelOpen]       = useState(true);
+  const [panelOpen, setPanelOpen]       = useState(false);
   const [input, setInput]               = useState("");
   const [sending, setSending]           = useState(false);
   const [retryIndex, setRetryIndex]     = useState<number | null>(null);
@@ -491,7 +500,14 @@ export default function PracticePage() {
                           ? <span className="h-3.5 w-3.5 shrink-0 mt-0.5 rounded-full border-2 border-indigo-400 flex items-center justify-center"><span className="h-1.5 w-1.5 rounded-full bg-indigo-400" /></span>
                           : <Circle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-slate-300" />}
                         <div className="min-w-0">
-                          <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Q{i + 1}</p>
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <p className="text-[10px] font-mono font-semibold uppercase tracking-widest text-slate-400">Q{i + 1}</p>
+                            {q.type && TYPE_META[q.type] && (
+                              <span className={`rounded border px-1 py-0 text-[9px] font-semibold uppercase tracking-wider ${TYPE_META[q.type].cls}`}>
+                                {TYPE_META[q.type].label}
+                              </span>
+                            )}
+                          </div>
                           <p className={`leading-snug ${answered ? "text-slate-400" : current ? "text-indigo-700" : "text-slate-500"}`}>{q.text}</p>
                         </div>
                       </div>

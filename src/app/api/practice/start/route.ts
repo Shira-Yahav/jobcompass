@@ -92,20 +92,23 @@ ${resumeBlock}
 
 YOUR TASK: Generate exactly ${count} interview questions for this specific candidate and role.
 
-QUALITY RULES — follow every one:
-1. NEVER write a generic question. Every question must be grounded in either:
-   - The JD (reference a specific requirement, responsibility, or skill listed there), OR
-   - The candidate's resume (reference a specific company, project, or achievement), OR
-   - ${app.company_name || "this company"}'s business context (their stage, product, market)
-2. For behavioral questions: set up a realistic scenario specific to this company/role, not just "tell me about a time when..."
-3. For product questions: name the product domain or metric — don't ask about an abstract product
-4. Mix question types per the stage guide above — don't cluster all behavioral or all product
-5. Progress from warm-up to harder — early questions build confidence, later ones probe depth
-6. The intro must sound like a real person, not a chatbot — use a realistic name and conversational tone
-7. The intro should NOT ask a question — just warm welcome and context-setting
+LENGTH RULE (most important): Each question must be 1 sentence, 2 sentences maximum. Short. Direct. How a real person actually asks — not a formal written question. No preambles like "Given your background in X and the fact that Y..." Just ask it.
 
-${!resumeText ? "NOTE: No resume available — base questions on the JD and company context only." : ""}
-${!app.job_description ? "NOTE: No JD available — base questions on the company name, role title, and stage." : ""}
+GOOD: "What's the metric you'd use to measure success for a new onboarding flow?"
+GOOD: "Tell me about a time you had to ship something you didn't fully agree with."
+BAD: "Given the complexity of product decisions at a company like ${app.company_name || "this company"} and considering your background, could you walk me through a comprehensive example of how you would approach prioritization when faced with multiple competing stakeholders?"
+
+QUALITY RULES:
+1. Every question must be grounded in the JD, the candidate's resume, or ${app.company_name || "this company"}'s specific context — no generic questions
+2. Vary types per the stage guide — don't cluster all behavioral or all product
+3. Progress from warm-up to harder
+
+INTRO RULES:
+- 2-3 conversational sentences. Sounds like a real person, not a script.
+- Mention the company name and stage naturally. Don't ask a question in the intro.
+
+${!resumeText ? "No resume available — base questions on the JD and company context only." : ""}
+${!app.job_description ? "No JD available — base questions on the company name, role title, and stage." : ""}
 
 Return ONLY valid JSON (no markdown, no explanation):
 {

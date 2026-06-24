@@ -14,7 +14,7 @@ interface AiResponseMessage {
 interface AiResponse {
   is_clarifying: boolean;
   messages: AiResponseMessage[];
-  next_question_index: number; // -1 = session complete
+  next_question_index: number; // -1 = session complete, same as currentQIndex = no advance
 }
 
 export async function POST(
@@ -32,7 +32,6 @@ export async function POST(
     retryQuestionIndex?: number;
   };
 
-  // Load session + application
   const { data: session } = await supabase
     .from("practice_sessions")
     .select("*, job_applications(company_name, position, resume_submitted_text)")
@@ -43,7 +42,6 @@ export async function POST(
   if (!session) return Response.json({ error: "Session not found" }, { status: 404 });
 
   const app = session.job_applications as { company_name: string; position: string; resume_submitted_text: string | null };
-  const questions = session.questions as PracticeMessage[];
   const messages = session.messages as PracticeMessage[];
   const feedbackMode = session.feedback_mode as string;
   const currentQIndex = isRetry && retryQuestionIndex !== undefined
@@ -51,83 +49,94 @@ export async function POST(
     : session.current_question_index as number;
 
   const currentQuestion = (session.questions as Array<{ index: number; text: string }>)[currentQIndex];
-
-  // Build conversation history for Claude
-  const conversationHistory = messages
-    .map(m => {
-      if (m.role === "user") return `[Candidate]: ${m.content}`;
-      if (m.type === "question") return `[Interviewer asks]: ${m.content}`;
-      if (m.type === "feedback" && m.score) {
-        return `[Feedback given - Overall ${m.score.overall}/10]: ${m.score.feedback_text}`;
-      }
-      return `[Interviewer]: ${m.content}`;
-    })
-    .join("\n");
-
-  const resume = app.resume_submitted_text
-    ? `\nCANDIDATE RESUME:\n${app.resume_submitted_text.slice(0, 1500)}`
-    : "";
+  const totalQuestions = (session.questions as Array<unknown>).length;
+  const isLastQuestion = currentQIndex >= totalQuestions - 1;
 
   const allQuestions = (session.questions as Array<{ index: number; text: string }>)
     .map(q => `Q${q.index + 1}: ${q.text}`)
     .join("\n");
 
-  const totalQuestions = (session.questions as Array<unknown>).length;
-  const isLastQuestion = currentQIndex >= totalQuestions - 1;
+  const conversationHistory = messages
+    .map(m => {
+      if (m.role === "user") return `Candidate: ${m.content}`;
+      if (m.type === "question" || m.type === "next_question") return `You asked: ${m.content}`;
+      if (m.type === "feedback" && m.score) return `[You gave feedback — ${m.score.overall}/10]`;
+      if (m.type === "acknowledgment") return `You said: ${m.content}`;
+      return `You: ${m.content}`;
+    })
+    .join("\n");
 
-  const prompt = `You are a ${session.stage.replace("_", " ")} interviewer at ${app.company_name || "a company"} interviewing a candidate for a ${app.position || "PM"} role. You are professional, encouraging, and thorough.
-${resume}
+  const resumeContext = app.resume_submitted_text
+    ? `\nCandidate resume (brief reference):\n${app.resume_submitted_text.slice(0, 1000)}`
+    : "";
 
-YOUR QUESTION LIST (private — ask naturally, never list them):
+  const prompt = `You are conducting a ${session.stage.replace("_", " ")} interview at ${app.company_name || "the company"} for the ${app.position || "PM"} role. You are a real, warm, direct human interviewer — not a bot.
+${resumeContext}
+
+Your question list (never reveal or list these):
 ${allQuestions}
 
-CURRENT QUESTION: Q${currentQIndex + 1} (${currentQuestion?.text ?? "wrap up"})
-QUESTIONS REMAINING: ${totalQuestions - currentQIndex - 1} after this one
-FEEDBACK MODE: ${feedbackMode === "as_you_go" ? "give immediate scored feedback after each substantive answer" : "acknowledge answers without scoring; reserve all feedback for session end"}
-${isRetry ? `\nNOTE: The candidate is RETRYING Q${(retryQuestionIndex ?? 0) + 1}. They answered it before. Evaluate this new attempt.` : ""}
+Currently on: Q${currentQIndex + 1} — "${currentQuestion?.text ?? "wrap up"}"
+${isRetry ? `The candidate is RETRYING this question — evaluate the new attempt.` : ""}
+Questions remaining after this: ${totalQuestions - currentQIndex - 1}
+Feedback mode: ${feedbackMode === "as_you_go" ? "score each substantive answer immediately" : "no scores during the interview — save all feedback for the end"}
 
-CONVERSATION SO FAR:
+Conversation so far:
 ${conversationHistory}
 
-THE CANDIDATE JUST SAID: "${userMessage}"
+Candidate just said: "${userMessage}"
 
-Decide: is this a clarifying question about the interview question, or a substantive answer attempt?
+---
 
-Rules:
-- Short clarifying questions ("What do you mean by X?", "Can you elaborate?") → is_clarifying: true
-- Any actual answer attempt (even imperfect) → is_clarifying: false
-- After ALL questions are answered (current is last and this is an answer) → include a session_complete message
+Step 1 — Classify: is this a clarifying question (asking what you mean, asking for context) or a substantive answer attempt?
+- Clarifying: "What do you mean by X?", "Can you be more specific?", short questions about the question itself
+- Substantive: any actual answer attempt, even a short or incomplete one
+
+Step 2 — Respond naturally, like a real interviewer would:
+- Keep responses short and human. No bullet points. Conversational sentences.
+- If clarifying: answer their question briefly, then re-ask your question naturally
+- If substantive answer:
+  ${feedbackMode === "as_you_go"
+    ? `- Give scored feedback first, then bridge naturally to the next question (or close if last)`
+    : `- Briefly acknowledge ("Got it, thanks") and move to the next question, or close if last`}
+- Never say "Great answer!" or generic praise — be specific or skip it
+- When moving to the next question, ask it naturally as part of conversation, not as "Question 4:"
 
 ${feedbackMode === "as_you_go" ? `
-SCORING RUBRIC (for substantive answers only):
-- structure (0-10): use of frameworks like STAR, CIRCLES, clear beginning/middle/end
-- relevance (0-10): does the answer actually address the question asked
-- depth (0-10): specific examples, real metrics, concrete details
-- clarity (0-10): clear, concise, easy to follow
-- overall (0-10): holistic score
-- feedback_text: 2-3 sentences — be specific, constructive, encouraging. Reference what they said.
+Scoring (only for substantive answers):
+structure: 0–10 — does the answer have a clear structure (STAR, framework, etc.)?
+relevance: 0–10 — does it actually answer what was asked?
+depth: 0–10 — specific examples, real numbers, concrete details?
+clarity: 0–10 — easy to follow, not rambling?
+overall: 0–10 — holistic judgment
+feedback_text: 2 sentences max. Specific and actionable. Reference what they actually said.
 ` : ""}
 
-Return ONLY valid JSON (no markdown fences):
+Step 3 — Determine next_question_index:
+- If this was CLARIFYING → next_question_index = ${currentQIndex} (do NOT advance, same question)
+- If this was a SUBSTANTIVE ANSWER and it's NOT the last question → next_question_index = ${currentQIndex + 1}
+- If this was a SUBSTANTIVE ANSWER and it IS the last question → next_question_index = -1
+
+Return ONLY valid JSON (no markdown):
 {
-  "is_clarifying": boolean,
+  "is_clarifying": true|false,
   "messages": [
     {
       "type": "clarification_response|question_repeat|acknowledgment|feedback|next_question|session_complete",
-      "content": "natural conversational text",
+      "content": "your response here",
       "score": { "overall": 0, "structure": 0, "relevance": 0, "depth": 0, "clarity": 0, "feedback_text": "" }
     }
   ],
-  "next_question_index": ${isLastQuestion ? -1 : currentQIndex + 1}
+  "next_question_index": <number you determined in Step 3>
 }
 
-Message type rules:
-- clarification_response: answer the candidate's clarifying question
-- question_repeat: re-ask the current question after clarifying (always follow clarification_response)
-- acknowledgment: brief "got it" when feedback mode is end_of_session
-- feedback: scored evaluation (only when feedbackMode is as_you_go)
-- next_question: ask the next question from your list naturally (not "Question 2: ...")
-- session_complete: wrap up the interview warmly, no score needed`;
+Message sequence rules:
+- Clarifying → [clarification_response, question_repeat]
+- Substantive + as_you_go + not last → [feedback, next_question]
+- Substantive + as_you_go + last → [feedback, session_complete]
+- Substantive + end_of_session + not last → [acknowledgment, next_question]
+- Substantive + end_of_session + last → [session_complete]
+- session_complete: warm, 1-2 sentence close — tell them what happens next`;
 
   const msg = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
@@ -143,7 +152,6 @@ Message type rules:
     return Response.json({ error: "Failed to parse AI response", raw: text }, { status: 500 });
   }
 
-  // Build new messages to append
   const userMsg: PracticeMessage = {
     role: "user",
     type: "answer",
@@ -161,11 +169,11 @@ Message type rules:
   }));
 
   const updatedMessages = [...messages, userMsg, ...newAiMessages];
+  // If clarifying, next_question_index equals currentQIndex — don't advance DB state
   const nextQIndex = aiResponse.next_question_index === -1
     ? currentQIndex
     : aiResponse.next_question_index;
 
-  // Save to DB
   await supabase
     .from("practice_sessions")
     .update({
