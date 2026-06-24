@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  FileText, Loader2, Upload, CheckCircle2, SendHorizonal, Copy, Download, RefreshCw, Zap,
+  FileText, Loader2, Upload, CheckCircle2, SendHorizonal, Copy, Download, Zap, X, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { ChatMessage } from "@/types";
@@ -33,6 +33,7 @@ export default function TailorResumePage() {
   const [additionalContext, setAdditionalContext] = useState("");
   const [uploading, setUploading] = useState(false);
   const [chatInput, setChatInput] = useState("");
+  const [changesOpen, setChangesOpen] = useState(false);
 
   // Auto-save context
   const userIdRef = useRef<string | null>(null);
@@ -84,6 +85,20 @@ export default function TailorResumePage() {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatHistory]);
+
+  // ── Remove resume ──────────────────────────────────────────────────────────
+  async function handleRemoveResume() {
+    const userId = userIdRef.current;
+    if (!userId) return;
+    await supabase.from("profiles").update({
+      resume_filename: null,
+      resume_text: null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", userId);
+    setUploadedFilename(null);
+    setTailoredResume(null);
+    setChatHistory([]);
+  }
 
   // ── Upload ─────────────────────────────────────────────────────────────────
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -192,27 +207,42 @@ export default function TailorResumePage() {
               Your resume
             </p>
             <div className="flex flex-col gap-3">
-              <label
-                htmlFor="resume-upload"
-                className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-600 transition-colors hover:border-slate-300 hover:bg-white"
-              >
-                {uploading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
-                ) : uploadedFilename ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                ) : (
-                  <Upload className="h-3.5 w-3.5 text-slate-400" />
-                )}
-                {uploading ? "Uploading…" : uploadedFilename ?? "Upload PDF resume"}
-              </label>
-              <input
-                id="resume-upload"
-                type="file"
-                accept="application/pdf"
-                className="hidden"
-                onChange={handleUpload}
-                disabled={uploading}
-              />
+              {uploadedFilename ? (
+                <div className="flex w-fit items-center gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-slate-700">
+                  <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-500" />
+                  <span className="max-w-[220px] truncate">{uploadedFilename}</span>
+                  <Tooltip content="Remove resume">
+                    <button
+                      onClick={handleRemoveResume}
+                      className="ml-1 rounded p-0.5 text-slate-400 transition-colors hover:bg-red-100 hover:text-red-500"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </Tooltip>
+                </div>
+              ) : (
+                <>
+                  <label
+                    htmlFor="resume-upload"
+                    className="flex w-fit cursor-pointer items-center gap-2 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] text-slate-600 transition-colors hover:border-slate-300 hover:bg-white"
+                  >
+                    {uploading ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-slate-400" />
+                    ) : (
+                      <Upload className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                    {uploading ? "Uploading…" : "Upload PDF resume"}
+                  </label>
+                  <input
+                    id="resume-upload"
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={handleUpload}
+                    disabled={uploading}
+                  />
+                </>
+              )}
 
               <div>
                 <label className="mb-1.5 block text-[12px] font-medium text-slate-500">
@@ -240,18 +270,28 @@ export default function TailorResumePage() {
           {/* ── Results ─────────────────────────────────────────────────────── */}
           {tailored && (
             <>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="flex items-start">
-                  <ScoreCard title="Interview likelihood" score={tailored.interview_likelihood} />
-                </div>
-                <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-slate-400">
+              <ScoreCard title="Interview likelihood" score={tailored.interview_likelihood} />
+
+              {/* What changed — collapsible */}
+              <div className="rounded-lg border border-slate-200 bg-white shadow-sm overflow-hidden">
+                <button
+                  onClick={() => setChangesOpen((o) => !o)}
+                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+                >
+                  <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-400">
                     What changed
-                  </p>
-                  <p className="whitespace-pre-line text-[12px] leading-relaxed text-slate-600">
-                    {tailored.changes_summary}
-                  </p>
-                </div>
+                  </span>
+                  {changesOpen
+                    ? <ChevronUp className="h-3.5 w-3.5 text-slate-400" />
+                    : <ChevronDown className="h-3.5 w-3.5 text-slate-400" />}
+                </button>
+                {changesOpen && (
+                  <div className="border-t border-slate-100 px-4 py-3">
+                    <p className="whitespace-pre-line text-[13px] leading-relaxed text-slate-600">
+                      {tailored.changes_summary}
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Tailored resume */}

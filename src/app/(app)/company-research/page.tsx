@@ -5,7 +5,7 @@ import { GlobalInputBar } from "@/components/layout/GlobalInputBar";
 import { ScoreCard } from "@/components/features/ScoreCard";
 import {
   Building2, Loader2, Users, TrendingUp, ExternalLink,
-  DollarSign, CalendarDays, Layers, Globe, Cpu,
+  DollarSign, CalendarDays, Layers, Globe, Cpu, Swords, CalendarRange,
 } from "lucide-react";
 
 export default function CompanyResearchPage() {
@@ -65,6 +65,9 @@ export default function CompanyResearchPage() {
                   {result.funding_stage && result.funding_stage !== "unknown" && (
                     <Badge variant="indigo">{result.funding_stage}</Badge>
                   )}
+                  {result.business_model && result.business_model !== "unknown" && (
+                    <Badge variant="teal">{result.business_model}</Badge>
+                  )}
                 </div>
               </div>
               <div className="shrink-0 pt-1">
@@ -73,9 +76,10 @@ export default function CompanyResearchPage() {
             </div>
 
             {/* ── Key stats ──────────────────────────────────────────────── */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               <Stat icon={Users} label="Employees" value={result.company_size && result.company_size !== "unknown" ? result.company_size : "—"} />
               <Stat icon={DollarSign} label="Total raised" value={result.total_raised && result.total_raised !== "unknown" ? result.total_raised : "—"} />
+              <Stat icon={CalendarRange} label="Founded" value={result.founded_year && result.founded_year !== "unknown" ? result.founded_year : "—"} />
               <Stat icon={CalendarDays} label="Last round" value={result.last_round_date && result.last_round_date !== "unknown" ? result.last_round_date : "—"} />
               <Stat icon={TrendingUp} label="Investors" value={result.key_investors?.length > 0 ? `${result.key_investors.length} known` : "—"} />
             </div>
@@ -87,6 +91,19 @@ export default function CompanyResearchPage() {
                   {result.key_investors.map((inv) => (
                     <span key={inv} className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-0.5 text-[12px] font-medium text-slate-700">
                       {inv}
+                    </span>
+                  ))}
+                </div>
+              </Section>
+            )}
+
+            {/* ── Competitors ───────────────────────────────────────────── */}
+            {result.competitors?.length > 0 && (
+              <Section icon={Swords} title="Top competitors">
+                <div className="flex flex-wrap gap-1.5">
+                  {result.competitors.map((c) => (
+                    <span key={c} className="rounded-md border border-rose-200 bg-rose-50 px-2.5 py-0.5 text-[12px] font-medium text-rose-700">
+                      {c}
                     </span>
                   ))}
                 </div>
@@ -148,12 +165,14 @@ export default function CompanyResearchPage() {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function Badge({ children, variant = "default" }: { children: React.ReactNode; variant?: "default" | "indigo" }) {
+function Badge({ children, variant = "default" }: { children: React.ReactNode; variant?: "default" | "indigo" | "teal" }) {
+  const styles = {
+    default: "border border-slate-200 bg-slate-100 text-slate-600",
+    indigo: "border border-indigo-200 bg-indigo-50 text-indigo-500",
+    teal: "border border-teal-200 bg-teal-50 text-teal-600",
+  };
   return (
-    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold font-mono
-      ${variant === "indigo"
-        ? "border border-indigo-200 bg-indigo-50 text-indigo-500"
-        : "border border-slate-200 bg-slate-100 text-slate-600"}`}>
+    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold font-mono ${styles[variant]}`}>
       {children}
     </span>
   );

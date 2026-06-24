@@ -74,6 +74,9 @@ export interface CompanyResearch {
   last_round_date: string;
   key_investors: string[];
   company_size: string;
+  founded_year: string;
+  competitors: string[];
+  business_model: string;
   value_proposition: string;
   problem_solved: string;
   technology_stack: string;

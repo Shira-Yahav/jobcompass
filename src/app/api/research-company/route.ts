@@ -2,7 +2,8 @@ import Anthropic from "@anthropic-ai/sdk";
 import { tavily } from "@tavily/core";
 import { createClient } from "@/lib/supabase/server";
 import { parseJsonResponse } from "@/lib/parseJson";
-import type { UserProfile, CompanyResearch } from "@/types";
+import type { UserProfile, FitWeights, CompanyResearch } from "@/types";
+import { DEFAULT_FIT_WEIGHTS } from "@/types";
 
 const anthropic = new Anthropic();
 
@@ -52,6 +53,17 @@ export async function POST(request: Request) {
 `.trim()
     : "No preferences saved.";
 
+  // Normalize fit weights to percentages (same logic as research-position)
+  const rawWeights = (p?.fit_weights as FitWeights | null) ?? DEFAULT_FIT_WEIGHTS;
+  const total = Object.values(rawWeights).reduce((a, b) => a + b, 0) || 1;
+  const pct = (v: number) => Math.round((v / total) * 100);
+  const weightConfig = `SCORING CONFIGURATION — User importance weights (must sum to ~100%):
+- Salary potential: ${pct(rawWeights.salary)}%
+- Company type: ${pct(rawWeights.company_type)}%
+- Funding stage: ${pct(rawWeights.funding_stage)}%
+- Industry / domain: ${pct(rawWeights.domain)}%
+- Work style: ${pct(rawWeights.work_style)}%`;
+
   // ── 2. Tavily web search — pull fresh company data ───────────────────────
   let searchContext = "";
   // Track sources with index so Claude can reference them by number
@@ -60,8 +72,8 @@ export async function POST(request: Request) {
   try {
     const tv = tavily({ apiKey: process.env.TAVILY_API_KEY! });
 
-    // Run four searches in parallel: funding history, product overview, employees/LinkedIn, and company culture/size
-    const [fundingSearch, productSearch, linkedinSearch, employeesSearch] = await Promise.all([
+    // Run five searches in parallel
+    const [fundingSearch, productSearch, linkedinSearch, employeesSearch, competitorsSearch] = await Promise.all([
       tv.search(`${companyName} funding rounds history crunchbase series seed`, {
         maxResults: 4,
         searchDepth: "basic",
@@ -78,6 +90,10 @@ export async function POST(request: Request) {
         maxResults: 3,
         searchDepth: "basic",
       }),
+      tv.search(`${companyName} founded year history top competitors market`, {
+        maxResults: 4,
+        searchDepth: "basic",
+      }),
     ]);
 
     const allResults = [
@@ -85,6 +101,7 @@ export async function POST(request: Request) {
       ...productSearch.results,
       ...linkedinSearch.results,
       ...employeesSearch.results,
+      ...competitorsSearch.results,
     ];
 
     // Deduplicate by URL, build numbered source list
@@ -117,6 +134,8 @@ ${searchContext}
 ━━━ CANDIDATE PREFERENCES ━━━
 ${preferenceSummary}
 
+━━━ ${weightConfig}
+
 ━━━ YOUR TASK ━━━
 Synthesise the search results (prioritised) with your training knowledge (as a fallback) to fill in every field below. For factual claims (funding, investors, size, stage), ONLY state information you found in the search results or are highly confident about. If a field is genuinely unknown, use the string "unknown" — do not guess or invent.
 
@@ -129,6 +148,9 @@ Return ONLY valid JSON matching this exact structure (no markdown fences, no ext
   "last_round_date": "string — month/quarter and year of most recent round e.g. Q3 2023; 'unknown' if not found",
   "key_investors": ["string", "..."],
   "company_size": "string — employee count or range e.g. '200–500 employees'; check LinkedIn and headcount sources — 'unknown' only if genuinely not found",
+  "founded_year": "string — year the company was founded e.g. '2018'; 'unknown' if not found in sources",
+  "competitors": ["string — top competitor company name", "..."],
+  "business_model": "string — primary model: B2B / B2C / B2B2C / B2E / Marketplace / Other (be specific, e.g. 'B2B SaaS')",
   "value_proposition": "string — 2–3 sentences on the value they deliver and to whom",
   "problem_solved": "string — 2–3 sentences on the specific problem they address",
   "technology_stack": "string — notable technologies, architecture, or technical approach mentioned in sources (1–2 sentences; omit if nothing found)",
@@ -182,10 +204,11 @@ SOURCE CITATION RULES:
 - If web search was unavailable and you relied on training knowledge, set "sources" to an empty array [].
 
 SCORING RULES:
-- 85–100: strong match on 4+ preference dimensions
-- 65–84: good match with minor mismatches
-- 40–64: meaningful gaps on 2+ important dimensions
-- 0–39: significant misalignment (wrong type, stage, domain, or work style)
+- Weight each dimension by the percentage in the SCORING CONFIGURATION block above. Dimensions with higher weight should have proportionally more impact on the final score.
+- 85–100: strong match on high-weight dimensions
+- 65–84: good match with minor mismatches on lower-weight dimensions
+- 40–64: meaningful gaps on 2+ dimensions that carry significant weight
+- 0–39: significant misalignment on the most important dimensions
 - Be honest — a score of 50 is not a failure, it just means real trade-offs exist.`;
 
 
