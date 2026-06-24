@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   User, Building2, Briefcase, FileText, History, LogOut,
-  Compass, ChevronRight, LayoutList,
+  Compass, ChevronRight, LayoutList, BookOpen,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -16,6 +16,7 @@ const NAV_ITEMS = [
   { href: "/position-research", label: "Position Research",icon: Briefcase,   hint: "Score a role against your profile" },
   { href: "/tailor-resume",     label: "Tailor Resume",    icon: FileText,    hint: "AI-rewrite your resume for the role" },
   { href: "/applications",      label: "Applications",     icon: LayoutList,  hint: "Track every application & practice interviews" },
+  { href: "/practice",          label: "Practice",         icon: BookOpen,    hint: "Simulate interviews for your applications" },
   { href: "/history",           label: "History",          icon: History,     hint: "Past searches & analyses" },
 ] as const;
 
@@ -55,7 +56,7 @@ export function Sidebar() {
       {/* Nav */}
       <nav className="flex flex-1 flex-col gap-0.5 px-2">
         {NAV_ITEMS.map(({ href, label, icon: Icon, hint }) => {
-          const active = pathname === href;
+          const active = pathname === href || pathname.startsWith(href + "/");
           return (
             <Tooltip key={href} content={hint} side="right" delayDuration={500}>
               <Link

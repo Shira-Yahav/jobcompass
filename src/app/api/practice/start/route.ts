@@ -50,6 +50,11 @@ export async function POST(request: Request) {
 STAGE FOCUS: ${stageFocus}
 ${jd}${resume}
 
+Also write a short natural interviewer intro (2-4 sentences max). The intro should:
+- Sound like a real person opening the call (e.g. "Hi! I'm [realistic name], [title] at [company]...")
+- Reference the stage and company naturally
+- NOT ask the first question — the chat will flow into questions naturally after the intro
+
 Generate questions that:
 1. Match the stage focus above
 2. Are tailored to ${app.company_name || "this company"} and the ${app.position || "PM"} role where possible
@@ -58,6 +63,7 @@ Generate questions that:
 
 Return ONLY valid JSON (no markdown fences):
 {
+  "intro": "Hi! I'm ...",
   "questions": [
     { "index": 0, "text": "...", "type": "behavioral|product_sense|situational|technical|company_specific|motivation" }
   ]
@@ -71,14 +77,21 @@ Return ONLY valid JSON (no markdown fences):
 
   const genText = genMsg.content[0].type === "text" ? genMsg.content[0].text : "";
   let questions: PracticeQuestion[];
+  let intro: string;
   try {
-    const parsed = parseJsonResponse<{ questions: PracticeQuestion[] }>(genText);
+    const parsed = parseJsonResponse<{ intro: string; questions: PracticeQuestion[] }>(genText);
     questions = parsed.questions;
+    intro = parsed.intro ?? `Hi! I'm your interviewer at ${app.company_name || "the company"}. Thanks for joining today — let's get started.`;
   } catch {
     return Response.json({ error: "Failed to generate questions" }, { status: 500 });
   }
 
-  // Build first message (AI asks first question)
+  // Two opening messages: intro + first question separately
+  const introMessage: PracticeMessage = {
+    role: "assistant",
+    type: "acknowledgment",
+    content: intro,
+  };
   const firstQuestion = questions[0];
   const openingMessage: PracticeMessage = {
     role: "assistant",
@@ -95,7 +108,7 @@ Return ONLY valid JSON (no markdown fences):
       application_id: applicationId,
       stage,
       questions,
-      messages: [openingMessage],
+      messages: [introMessage, openingMessage],
       feedback_mode: feedbackMode,
       current_question_index: 0,
     })
