@@ -54,10 +54,26 @@ export async function POST(request: Request) {
     return Response.json({ error: `PDF parse failed: ${msg}` }, { status: 422 });
   }
 
+  // Store PDF in Supabase Storage so it can be viewed as a real PDF later
+  const storagePath = `${user.id}/base-resume.pdf`;
+  let resumeStoragePath: string | null = null;
+  try {
+    const { error: storageError } = await supabase.storage
+      .from("application-resumes")
+      .upload(storagePath, buffer, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+    if (!storageError) resumeStoragePath = storagePath;
+  } catch {
+    // Non-fatal — text is still saved
+  }
+
   const { error } = await supabase.from("profiles").upsert({
     id: user.id,
     resume_text: resumeText,
     resume_filename: file.name,
+    resume_storage_path: resumeStoragePath,
     additional_context: additionalContext,
     updated_at: new Date().toISOString(),
   });

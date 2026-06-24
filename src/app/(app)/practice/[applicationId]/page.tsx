@@ -194,8 +194,9 @@ export default function PracticePage() {
   const [input, setInput]               = useState("");
   const [sending, setSending]           = useState(false);
   const [retryIndex, setRetryIndex]     = useState<number | null>(null);
-  const [jdModal, setJdModal]           = useState(false);
-  const [resumeModal, setResumeModal]   = useState(false);
+  const [jdModal, setJdModal]                               = useState(false);
+  const [pdfModal, setPdfModal]                             = useState<{ url: string; filename: string } | null>(null);
+  const [loadingResumeUrl, setLoadingResumeUrl]             = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef   = useRef<HTMLTextAreaElement>(null);
@@ -209,7 +210,7 @@ export default function PracticePage() {
 
       const [appsRes, profileRes] = await Promise.all([
         fetch("/api/applications"),
-        supabase.from("profiles").select("resume_text, resume_filename").eq("id", user.id).single(),
+        supabase.from("profiles").select("resume_text, resume_filename, resume_storage_path").eq("id", user.id).single(),
       ]);
 
       const apps: JobApplication[] = await appsRes.json();
@@ -255,6 +256,22 @@ export default function PracticePage() {
     setSession(sess);
     setPhase("active");
     setTimeout(() => inputRef.current?.focus(), 100);
+  }
+
+  // ── Open base resume PDF ──────────────────────────────────────────────────
+  async function openBaseResumePdf() {
+    if (!profile?.resume_storage_path) return;
+    setLoadingResumeUrl(true);
+    try {
+      const res = await fetch("/api/profile/resume-url");
+      if (!res.ok) { toast.error("Could not load resume PDF."); return; }
+      const { url } = await res.json();
+      setPdfModal({ url, filename: profile.resume_filename ?? "Base Resume" });
+    } catch {
+      toast.error("Could not load resume PDF.");
+    } finally {
+      setLoadingResumeUrl(false);
+    }
   }
 
   // ── Send message ──────────────────────────────────────────────────────────
@@ -370,14 +387,18 @@ export default function PracticePage() {
           </button>
         )}
 
-        {/* Base resume pill */}
-        {profile?.resume_text && (
+        {/* Base resume pill — shows if any resume is available */}
+        {(profile?.resume_storage_path || profile?.resume_text) && (
           <button
-            onClick={() => setResumeModal(true)}
-            className="shrink-0 flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-100 transition-colors whitespace-nowrap"
+            onClick={profile?.resume_storage_path ? openBaseResumePdf : undefined}
+            disabled={loadingResumeUrl || !profile?.resume_storage_path}
+            title={!profile?.resume_storage_path ? "Re-upload your resume to enable PDF view" : undefined}
+            className="shrink-0 flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-100 transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <FileText className="h-3.5 w-3.5" />
-            {profile.resume_filename ?? "Base Resume"}
+            {loadingResumeUrl
+              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              : <FileText className="h-3.5 w-3.5" />}
+            {profile?.resume_filename ?? "Base Resume"}
           </button>
         )}
 
@@ -534,12 +555,23 @@ export default function PracticePage() {
       {jdModal && app?.job_description && (
         <TextModal title="Job Description" content={app.job_description} onClose={() => setJdModal(false)} />
       )}
-      {resumeModal && profile?.resume_text && (
-        <TextModal
-          title={profile.resume_filename ?? "Base Resume"}
-          content={profile.resume_text}
-          onClose={() => setResumeModal(false)}
-        />
+
+      {/* PDF viewer — same pattern as Applications tab */}
+      {pdfModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="flex flex-col w-full max-w-4xl h-[90vh] rounded-xl border border-slate-200 bg-white shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5 shrink-0">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-emerald-500" />
+                <span className="text-[13px] font-semibold text-slate-800 truncate max-w-[400px]">{pdfModal.filename}</span>
+              </div>
+              <button onClick={() => setPdfModal(null)} className="rounded p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <iframe src={pdfModal.url} className="flex-1 w-full border-0" title={pdfModal.filename} />
+          </div>
+        </div>
       )}
     </div>
   );

@@ -32,6 +32,7 @@ export interface UserProfile {
   fit_weights: FitWeights | null;
   resume_text: string | null;
   resume_filename: string | null;
+  resume_storage_path: string | null;
   additional_context: string | null;
   updated_at: string;
 }
