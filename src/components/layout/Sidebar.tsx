@@ -7,15 +7,16 @@ import { createClient } from "@/lib/supabase/client";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   User, Building2, Briefcase, FileText, History, LogOut,
-  Compass, ChevronRight,
+  Compass, ChevronRight, LayoutList,
 } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/profile",           label: "My Profile",       icon: User,      hint: "Your preferences & fit formula" },
-  { href: "/company-research",  label: "Company Research", icon: Building2, hint: "AI-powered company intelligence" },
-  { href: "/position-research", label: "Position Research",icon: Briefcase, hint: "Score a role against your profile" },
-  { href: "/tailor-resume",     label: "Tailor Resume",    icon: FileText,  hint: "AI-rewrite your resume for the role" },
-  { href: "/history",           label: "History",          icon: History,   hint: "Past searches & analyses" },
+  { href: "/profile",           label: "My Profile",       icon: User,        hint: "Your preferences & fit formula" },
+  { href: "/company-research",  label: "Company Research", icon: Building2,   hint: "AI-powered company intelligence" },
+  { href: "/position-research", label: "Position Research",icon: Briefcase,   hint: "Score a role against your profile" },
+  { href: "/tailor-resume",     label: "Tailor Resume",    icon: FileText,    hint: "AI-rewrite your resume for the role" },
+  { href: "/applications",      label: "Applications",     icon: LayoutList,  hint: "Track every application & practice interviews" },
+  { href: "/history",           label: "History",          icon: History,     hint: "Past searches & analyses" },
 ] as const;
 
 export function Sidebar() {

@@ -103,6 +103,43 @@ export interface TailoredResume {
   changes_summary: string;
 }
 
+// ─── Application Tracker ─────────────────────────────────────────────────────
+
+export type ApplicationStage =
+  | "applied"
+  | "intro_call"
+  | "hiring_manager"
+  | "technical"
+  | "panel"
+  | "contract"
+  | "offer";
+
+export type ApplicationStatus =
+  | "active"
+  | "pending_company"
+  | "pending_me"
+  | "rejected"
+  | "withdrew"
+  | "offer_received"
+  | "accepted";
+
+export interface JobApplication {
+  id: string;
+  user_id: string;
+  company_name: string;
+  position: string;
+  job_description: string | null;
+  job_posting_url: string | null;
+  resume_submitted_filename: string | null;
+  date_started: string;           // ISO date string e.g. "2026-06-24"
+  stage: ApplicationStage;
+  status: ApplicationStatus;
+  notes: string | null;
+  research_session_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Chat ────────────────────────────────────────────────────────────────────
 
 export interface ChatMessage {

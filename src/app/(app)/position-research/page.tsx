@@ -1,28 +1,68 @@
 "use client";
 
+import { useState } from "react";
 import { useResultsStore } from "@/store/resultsStore";
+import { useJobStore } from "@/store/jobStore";
 import { GlobalInputBar } from "@/components/layout/GlobalInputBar";
 import { ScoreCard } from "@/components/features/ScoreCard";
+import { toast } from "sonner";
 import {
-  Briefcase, Loader2, CheckCircle2, AlertTriangle, ArrowRight,
+  Briefcase, Loader2, CheckCircle2, AlertTriangle, ArrowRight, Plus, Check,
 } from "lucide-react";
 
 export default function PositionResearchPage() {
   const { positionResearch: result, loadingPosition: loading } = useResultsStore();
+  const { companyName, jobDescription, sessionId } = useJobStore();
+  const [added, setAdded] = useState(false);
+  const [adding, setAdding] = useState(false);
+
+  async function handleAddToTracker() {
+    if (adding || added) return;
+    setAdding(true);
+    const res = await fetch("/api/applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        company_name: companyName,
+        job_description: jobDescription || null,
+        research_session_id: sessionId,
+      }),
+    });
+    setAdding(false);
+    if (!res.ok) { toast.error("Failed to add to tracker."); return; }
+    setAdded(true);
+    toast.success("Added to Applications tracker.");
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <GlobalInputBar />
 
       {/* Page header */}
-      <div className="px-6 pt-5 pb-4 shrink-0">
-        <div className="flex items-center gap-2 mb-0.5">
-          <Briefcase className="h-4 w-4 text-indigo-500" />
-          <h1 className="text-[15px] font-semibold text-slate-900">Position Research</h1>
+      <div className="flex items-center justify-between px-6 pt-5 pb-4 shrink-0">
+        <div>
+          <div className="flex items-center gap-2 mb-0.5">
+            <Briefcase className="h-4 w-4 text-indigo-500" />
+            <h1 className="text-[15px] font-semibold text-slate-900">Position Research</h1>
+          </div>
+          <p className="text-[13px] text-slate-500 pl-6">
+            How well this role matches your preferences and experience.
+          </p>
         </div>
-        <p className="text-[13px] text-slate-500 pl-6">
-          How well this role matches your preferences and experience.
-        </p>
+        {result && (
+          <button
+            onClick={handleAddToTracker}
+            disabled={adding || added}
+            className={`flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-medium transition-all shrink-0 ${
+              added
+                ? "border border-emerald-200 bg-emerald-50 text-emerald-600"
+                : "border border-slate-200 bg-white text-slate-600 hover:border-indigo-200 hover:text-indigo-500 hover:shadow-sm"
+            } disabled:opacity-60`}
+          >
+            {added ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+            {added ? "Added" : "Add to Tracker"}
+          </button>
+        )}
       </div>
 
       {/* Body */}
