@@ -142,6 +142,54 @@ export interface JobApplication {
   updated_at: string;
 }
 
+// ─── Practice ─────────────────────────────────────────────────────────────────
+
+export type PracticeQuestionType =
+  | "behavioral" | "product_sense" | "situational" | "technical" | "company_specific" | "motivation";
+
+export type PracticeMessageType =
+  | "question" | "answer" | "feedback" | "clarification_response" | "question_repeat" | "acknowledgment" | "session_complete" | "next_question";
+
+export type FeedbackMode = "as_you_go" | "end_of_session";
+
+export interface PracticeQuestion {
+  index: number;
+  text: string;
+  type: PracticeQuestionType;
+}
+
+export interface PracticeScore {
+  overall: number;       // 0–10
+  structure: number;
+  relevance: number;
+  depth: number;
+  clarity: number;
+  feedback_text: string; // 2–3 sentences
+}
+
+export interface PracticeMessage {
+  role: "user" | "assistant";
+  type: PracticeMessageType;
+  content: string;
+  question_index?: number;     // which question this relates to
+  score?: PracticeScore;       // only on type="feedback"
+  retry_of?: number;           // if this is a retry answer, the original question_index
+}
+
+export interface PracticeSession {
+  id: string;
+  user_id: string;
+  application_id: string;
+  stage: string;
+  questions: PracticeQuestion[];
+  messages: PracticeMessage[];
+  feedback_mode: FeedbackMode;
+  current_question_index: number;
+  completed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Chat ────────────────────────────────────────────────────────────────────
 
 export interface ChatMessage {

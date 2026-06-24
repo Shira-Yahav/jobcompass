@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import {
@@ -144,6 +145,7 @@ function DatePicker({ value, onChange }: { value: string; onChange: (v: string) 
 
 export default function ApplicationsPage() {
   const supabase = createClient();
+  const router = useRouter();
 
   const [apps, setApps] = useState<JobApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -594,8 +596,9 @@ export default function ApplicationsPage() {
 
                       {/* Practice */}
                       <td className="px-3 py-2.5">
-                        <button disabled title="Coming in V1"
-                          className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[11px] font-medium text-slate-300 cursor-not-allowed whitespace-nowrap">
+                        <button
+                          onClick={() => router.push(`/practice/${app.id}`)}
+                          className="flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-[11px] font-medium text-indigo-600 hover:bg-indigo-100 hover:border-indigo-300 transition-colors whitespace-nowrap">
                           <BookOpen className="h-3 w-3" /> Practice
                         </button>
                       </td>
