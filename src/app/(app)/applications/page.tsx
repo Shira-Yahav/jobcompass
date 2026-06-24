@@ -300,18 +300,32 @@ export default function ApplicationsPage() {
 
   async function saveNew() {
     if (!newDraft.company_name.trim()) { setShowNewRow(false); return; } // discard if empty
-    setSavingNew(true);
+
+    // Optimistic: show row immediately, POST in background
+    const tempId = `__temp_${Date.now()}`;
+    const tempRow: JobApplication = {
+      id: tempId, user_id: "",
+      ...newDraft,
+      job_description: null, job_posting_url: null,
+      resume_submitted_filename: null, resume_submitted_text: null, resume_storage_path: null,
+      notes: null, research_session_id: null,
+      created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    };
+    setApps(prev => [tempRow, ...prev]);
+    setShowNewRow(false);
+
     const res = await fetch("/api/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newDraft),
     });
-    setSavingNew(false);
-    if (!res.ok) { toast.error("Failed to create."); return; }
+    if (!res.ok) {
+      setApps(prev => prev.filter(a => a.id !== tempId)); // rollback
+      toast.error("Failed to create application.");
+      return;
+    }
     const created: JobApplication = await res.json();
-    setApps(prev => [created, ...prev]);
-    setShowNewRow(false);
-    toast.success("Application added.");
+    setApps(prev => prev.map(a => a.id === tempId ? created : a)); // replace temp
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -356,8 +370,8 @@ export default function ApplicationsPage() {
             <table className="w-full border-collapse text-[13px] min-w-[1080px]">
               <thead>
                 <tr className="border-b border-slate-200">
-                  {["Company", "Position", "Stage", "Status", "App Date", "Job Description", "Link", "Resume", "Practice", ""].map(h => (
-                    <th key={h} className="px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400 font-mono whitespace-nowrap">{h}</th>
+                  {["Company", "Position", "Stage", "Status", "App Date", "Job Description", "Link", "Resume", "Practice", ""].map((h, i) => (
+                    <th key={h} className={`px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-widest text-slate-400 font-mono whitespace-nowrap ${i === 0 ? "sticky left-0 z-10 bg-white shadow-[1px_0_0_0_#e2e8f0]" : ""}`}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -374,7 +388,7 @@ export default function ApplicationsPage() {
                       }
                     }}
                   >
-                    <td className="px-2 py-2">
+                    <td className="sticky left-0 z-10 bg-indigo-50/30 px-2 py-2 shadow-[1px_0_0_0_#e2e8f0]">
                       <input autoFocus value={newDraft.company_name}
                         onChange={e => setNewDraft(d => ({ ...d, company_name: e.target.value }))}
                         placeholder="Company *"
@@ -424,8 +438,8 @@ export default function ApplicationsPage() {
                   return (
                     <tr key={app.id} className="group border-b border-slate-100 hover:bg-slate-50/60 transition-colors">
 
-                      {/* Company */}
-                      <td className="px-3 py-2.5 min-w-[130px] max-w-[160px]">
+                      {/* Company — sticky */}
+                      <td className="sticky left-0 z-10 bg-white px-3 py-2.5 min-w-[130px] max-w-[160px] shadow-[1px_0_0_0_#e2e8f0] group-hover:bg-slate-50">
                         {cellEdit?.id === app.id && cellEdit.field === "company_name" ? (
                           <input ref={cellInputRef} value={cellEdit.value}
                             onChange={e => setCellEdit(c => c && { ...c, value: e.target.value })}
