@@ -196,6 +196,7 @@ export default function PracticePage() {
   const [retryIndex, setRetryIndex]     = useState<number | null>(null);
   const [jdModal, setJdModal]                               = useState(false);
   const [pdfModal, setPdfModal]                             = useState<{ url: string; filename: string } | null>(null);
+  const [textFallbackOpen, setTextFallbackOpen]             = useState(false);
   const [loadingResumeUrl, setLoadingResumeUrl]             = useState(false);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -258,17 +259,26 @@ export default function PracticePage() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }
 
-  // ── Open base resume PDF ──────────────────────────────────────────────────
-  async function openBaseResumePdf() {
-    if (!profile?.resume_storage_path) return;
+  // ── Open base resume (PDF if stored, text fallback) ──────────────────────
+  async function openBaseResume() {
+    if (!profile) return;
     setLoadingResumeUrl(true);
     try {
       const res = await fetch("/api/profile/resume-url");
-      if (!res.ok) { toast.error("Could not load resume PDF."); return; }
-      const { url } = await res.json();
-      setPdfModal({ url, filename: profile.resume_filename ?? "Base Resume" });
+      if (res.ok) {
+        const { url } = await res.json();
+        setPdfModal({ url, filename: profile.resume_filename ?? "Base Resume" });
+        return;
+      }
+      // PDF not stored — show text fallback if available
+      if (profile.resume_text) {
+        setTextFallbackOpen(true);
+      } else {
+        toast.error("No resume found. Upload one on the Profile page.");
+      }
     } catch {
-      toast.error("Could not load resume PDF.");
+      if (profile.resume_text) setTextFallbackOpen(true);
+      else toast.error("Could not load resume.");
     } finally {
       setLoadingResumeUrl(false);
     }
@@ -387,13 +397,12 @@ export default function PracticePage() {
           </button>
         )}
 
-        {/* Base resume pill — shows if any resume is available */}
-        {(profile?.resume_storage_path || profile?.resume_text) && (
+        {/* Base resume pill */}
+        {(profile?.resume_text || profile?.resume_storage_path) && (
           <button
-            onClick={profile?.resume_storage_path ? openBaseResumePdf : undefined}
-            disabled={loadingResumeUrl || !profile?.resume_storage_path}
-            title={!profile?.resume_storage_path ? "Re-upload your resume to enable PDF view" : undefined}
-            className="shrink-0 flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-100 transition-colors whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
+            onClick={openBaseResume}
+            disabled={loadingResumeUrl}
+            className="shrink-0 flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-100 transition-colors whitespace-nowrap disabled:opacity-60"
           >
             {loadingResumeUrl
               ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -554,6 +563,15 @@ export default function PracticePage() {
       {/* ── Modals ──────────────────────────────────────────────────────── */}
       {jdModal && app?.job_description && (
         <TextModal title="Job Description" content={app.job_description} onClose={() => setJdModal(false)} />
+      )}
+
+      {/* Text fallback when PDF isn't stored yet */}
+      {textFallbackOpen && profile?.resume_text && (
+        <TextModal
+          title={profile.resume_filename ?? "Base Resume"}
+          content={profile.resume_text}
+          onClose={() => setTextFallbackOpen(false)}
+        />
       )}
 
       {/* PDF viewer — same pattern as Applications tab */}
