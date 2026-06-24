@@ -23,15 +23,22 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as Partial<JobApplication>;
 
+  // Auto-fill resume + position from profile if not explicitly provided
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("resume_filename, desired_position")
+    .eq("id", user.id)
+    .single();
+
   const { data, error } = await supabase
     .from("job_applications")
     .insert({
       user_id: user.id,
       company_name: body.company_name ?? "",
-      position: body.position ?? "",
+      position: body.position ?? profile?.desired_position ?? "",
       job_description: body.job_description ?? null,
       job_posting_url: body.job_posting_url ?? null,
-      resume_submitted_filename: body.resume_submitted_filename ?? null,
+      resume_submitted_filename: body.resume_submitted_filename ?? profile?.resume_filename ?? null,
       date_started: body.date_started ?? new Date().toISOString().split("T")[0],
       stage: body.stage ?? "applied",
       status: body.status ?? "active",
