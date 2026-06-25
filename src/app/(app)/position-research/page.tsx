@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 export default function PositionResearchPage() {
-  const { positionResearch: result, loadingPosition: loading } = useResultsStore();
+  const { positionResearch: result, loadingPosition: loading, loadingStep } = useResultsStore();
   const { companyName, jobDescription, sessionId } = useJobStore();
   const [added, setAdded] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -83,8 +83,8 @@ export default function PositionResearchPage() {
             <div className="flex h-44 flex-col items-center justify-center gap-3">
               <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
               <div className="text-center">
-                <p className="text-[13px] font-medium text-slate-600">Analysing fit…</p>
-                <p className="text-[12px] text-slate-400 mt-0.5 font-mono">Comparing role · Scoring profile · Identifying gaps</p>
+                <p className="text-[13px] font-medium text-slate-600">{loadingStep ?? "Loading…"}</p>
+                <p className="text-[12px] text-slate-400 mt-0.5 font-mono">This takes 10–20 seconds</p>
               </div>
             </div>
           )}

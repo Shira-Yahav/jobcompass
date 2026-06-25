@@ -21,6 +21,7 @@ interface ResultsStore {
   loadingCompany: boolean;
   loadingPosition: boolean;
   loadingResume: boolean;
+  loadingStep: string | null;  // current step label shown during long loads
 
   // Direct setters (for chat / upload side-effects)
   setCompanyResearch: (r: CompanyResearch | null) => void;
@@ -56,6 +57,7 @@ export const useResultsStore = create<ResultsStore>()(
       loadingCompany: false,
       loadingPosition: false,
       loadingResume: false,
+      loadingStep: null,
 
       setCompanyResearch: (r) => set({ companyResearch: r }),
       setPositionResearch: (r) => set({ positionResearch: r }),
@@ -64,7 +66,8 @@ export const useResultsStore = create<ResultsStore>()(
 
       // ── Company research ──────────────────────────────────────────────────
       runCompanyResearch: async (companyName, sessionId, onError) => {
-        set({ loadingCompany: true, companyResearch: null });
+        set({ loadingCompany: true, companyResearch: null, loadingStep: "Searching the web…" });
+        const stepTimer = setTimeout(() => set({ loadingStep: "Analysing results…" }), 4000);
         try {
           const res = await fetch("/api/research-company", {
             method: "POST",
@@ -87,13 +90,14 @@ export const useResultsStore = create<ResultsStore>()(
         } catch {
           onError("Network error — please try again.");
         } finally {
-          set({ loadingCompany: false });
+          clearTimeout(stepTimer);
+          set({ loadingCompany: false, loadingStep: null });
         }
       },
 
       // ── Position research ─────────────────────────────────────────────────
       runPositionResearch: async (companyName, jobDescription, sessionId, onError) => {
-        set({ loadingPosition: true, positionResearch: null });
+        set({ loadingPosition: true, positionResearch: null, loadingStep: "Analysing role fit…" });
         try {
           const res = await fetch("/api/research-position", {
             method: "POST",
@@ -117,7 +121,7 @@ export const useResultsStore = create<ResultsStore>()(
         } catch {
           onError("Network error — please try again.");
         } finally {
-          set({ loadingPosition: false });
+          set({ loadingPosition: false, loadingStep: null });
         }
       },
 

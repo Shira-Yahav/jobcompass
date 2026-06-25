@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 export default function CompanyResearchPage() {
-  const { companyResearch: result, loadingCompany: loading } = useResultsStore();
+  const { companyResearch: result, loadingCompany: loading, loadingStep } = useResultsStore();
   const { companyName, jobDescription, sessionId } = useJobStore();
   const [added, setAdded] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -83,8 +83,8 @@ export default function CompanyResearchPage() {
           <div className="flex h-52 flex-col items-center justify-center gap-3">
             <Loader2 className="h-6 w-6 animate-spin text-indigo-500" />
             <div className="text-center">
-              <p className="text-[13px] font-medium text-slate-600">Fetching live data…</p>
-              <p className="text-[12px] text-slate-400 mt-0.5 font-mono">Searching the web · Analysing fit</p>
+              <p className="text-[13px] font-medium text-slate-600">{loadingStep ?? "Loading…"}</p>
+              <p className="text-[12px] text-slate-400 mt-0.5 font-mono">This takes 15–25 seconds</p>
             </div>
           </div>
         )}

@@ -67,6 +67,11 @@ export async function POST(
   const isLastQ  = currentQIndex >= totalQs - 1;
   const persona  = STAGE_PERSONA[session.stage] ?? "Product Manager";
 
+  // Enforce max 1 follow-up per question server-side (AI doesn't always respect the prompt rule)
+  const alreadyFollowedUp = messages.some(
+    m => m.role === "assistant" && m.type === "follow_up" && m.question_index === currentQIndex
+  );
+
   // Build a readable conversation history
   const conversationHistory = messages
     .filter(m => m.type !== "acknowledgment") // skip the opening intro
@@ -96,7 +101,11 @@ export async function POST(
   // This is the full prompt for the conversation turn.
   // Parameters injected: persona, company, role, resume, JD, full history, current question.
 
-  const prompt = `You are a ${persona} at ${app.company_name || "the company"}, conducting a ${session.stage.replace(/_/g, " ")} interview for the ${app.position || "PM"} role. You are professional, direct, and genuinely interested in understanding this candidate — not reciting a script.
+  const followUpOverride = alreadyFollowedUp
+    ? `\n⚠️ OVERRIDE: You have ALREADY asked a follow-up on Q${currentQIndex + 1} (visible in conversation history as "Interviewer (follow-up):"). You MUST classify this as C (complete) — no exceptions. Do NOT ask another follow-up.\n`
+    : "";
+
+  const prompt = `You are a ${persona} at ${app.company_name || "the company"}, conducting a ${session.stage.replace(/_/g, " ")} interview for the ${app.position || "PM"} role. You are professional, direct, and genuinely interested in understanding this candidate — not reciting a script.${followUpOverride}
 ${resumeSnippet}
 ${jdSnippet}
 
@@ -193,6 +202,15 @@ Message sequence by classification:
     aiResponse = parseJsonResponse<AiResponse>(text);
   } catch {
     return Response.json({ error: "Failed to parse AI response", raw: text }, { status: 500 });
+  }
+
+  // Hard override: if AI still returned follow_up after we told it not to, force complete
+  if (alreadyFollowedUp && aiResponse.classification === "follow_up") {
+    aiResponse.classification = "complete";
+    aiResponse.next_question_index = isLastQ ? -1 : currentQIndex + 1;
+    aiResponse.messages = aiResponse.messages.map(m =>
+      m.type === "follow_up" ? { ...m, type: isLastQ ? "session_complete" : "next_question" } : m
+    );
   }
 
   const userMsg: PracticeMessage = {

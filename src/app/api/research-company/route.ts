@@ -72,25 +72,17 @@ export async function POST(request: Request) {
   try {
     const tv = tavily({ apiKey: process.env.TAVILY_API_KEY! });
 
-    // Run five searches in parallel
-    const [fundingSearch, productSearch, linkedinSearch, employeesSearch, competitorsSearch] = await Promise.all([
-      tv.search(`${companyName} funding rounds history crunchbase series seed`, {
-        maxResults: 4,
+    // Run three searches in parallel (merged to reduce latency)
+    const [fundingSearch, productSearch, teamSearch] = await Promise.all([
+      tv.search(`${companyName} funding rounds investors series crunchbase founded year`, {
+        maxResults: 5,
         searchDepth: "basic",
       }),
-      tv.search(`${companyName} product value proposition what they do`, {
-        maxResults: 4,
+      tv.search(`${companyName} product what they do value proposition business model customers`, {
+        maxResults: 5,
         searchDepth: "basic",
       }),
-      tv.search(`${companyName} linkedin company employees headcount`, {
-        maxResults: 3,
-        searchDepth: "basic",
-      }),
-      tv.search(`${companyName} total employees team size 2024 2025`, {
-        maxResults: 3,
-        searchDepth: "basic",
-      }),
-      tv.search(`${companyName} founded year history top competitors market`, {
+      tv.search(`${companyName} employees headcount team size competitors market`, {
         maxResults: 4,
         searchDepth: "basic",
       }),
@@ -99,9 +91,7 @@ export async function POST(request: Request) {
     const allResults = [
       ...fundingSearch.results,
       ...productSearch.results,
-      ...linkedinSearch.results,
-      ...employeesSearch.results,
-      ...competitorsSearch.results,
+      ...teamSearch.results,
     ];
 
     // Deduplicate by URL, build numbered source list

@@ -18,27 +18,31 @@ export function GlobalInputBar() {
   const hasJD = jobDescription.trim().length > 0;
 
   function handleRun() {
-    if (!hasCompany && !hasJD) {
-      toast.error("Enter a company name or job description first.");
-      return;
-    }
-    if (!hasCompany && hasJD) {
-      toast.error("Add a company name to run.");
+    if (!hasCompany) {
+      toast.error("Enter a company name first.");
       return;
     }
 
-    if (hasCompany && hasJD) {
-      if (pathname !== "/position-research") router.push("/position-research");
+    if (pathname === "/position-research") {
+      if (!hasJD) { toast.error("Add a job description to analyse this position."); return; }
       runPositionResearch(companyName, jobDescription, sessionId, (msg) => toast.error(msg));
-    } else {
-      if (pathname !== "/company-research") router.push("/company-research");
+    } else if (pathname === "/company-research") {
       runCompanyResearch(companyName, sessionId, (msg) => toast.error(msg));
+    } else {
+      // Not on either research page — navigate based on what's available
+      if (hasJD) {
+        router.push("/position-research");
+        runPositionResearch(companyName, jobDescription, sessionId, (msg) => toast.error(msg));
+      } else {
+        router.push("/company-research");
+        runCompanyResearch(companyName, sessionId, (msg) => toast.error(msg));
+      }
     }
   }
 
-  const runTooltip = !hasCompany && hasJD
-    ? "Add a company name to run"
-    : hasCompany && hasJD
+  const runTooltip = !hasCompany
+    ? "Enter a company name to run"
+    : pathname === "/position-research"
       ? "Run position analysis"
       : "Run company research";
 
