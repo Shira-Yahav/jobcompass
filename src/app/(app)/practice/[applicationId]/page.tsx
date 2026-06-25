@@ -259,26 +259,25 @@ export default function PracticePage() {
     setTimeout(() => inputRef.current?.focus(), 100);
   }
 
-  // ── Open base resume (PDF if stored, text fallback) ──────────────────────
-  async function openBaseResume() {
-    if (!profile) return;
+  // ── Open application's submitted resume as PDF ───────────────────────────
+  async function openAppResume() {
+    if (!app) return;
     setLoadingResumeUrl(true);
     try {
-      const res = await fetch("/api/profile/resume-url");
+      const res = await fetch(`/api/applications/${applicationId}/resume-url`);
       if (res.ok) {
         const { url } = await res.json();
-        setPdfModal({ url, filename: profile.resume_filename ?? "Base Resume" });
+        setPdfModal({ url, filename: app.resume_submitted_filename ?? "Resume" });
         return;
       }
-      // PDF not stored — show text fallback if available
-      if (profile.resume_text) {
+      // Signed URL unavailable — fall back to parsed text if present
+      if (app.resume_submitted_text) {
         setTextFallbackOpen(true);
       } else {
-        toast.error("No resume found. Upload one on the Profile page.");
+        toast.error("Could not load resume PDF.");
       }
     } catch {
-      if (profile.resume_text) setTextFallbackOpen(true);
-      else toast.error("Could not load resume.");
+      toast.error("Could not load resume.");
     } finally {
       setLoadingResumeUrl(false);
     }
@@ -345,7 +344,7 @@ export default function PracticePage() {
     <div className="flex flex-col h-full overflow-hidden">
 
       {/* ── Single-line top bar ──────────────────────────────────────────── */}
-      <div className="shrink-0 border-b border-slate-100 px-4 py-2.5 flex items-center gap-3 overflow-x-auto min-w-0">
+      <div className="shrink-0 border-b border-slate-100 px-4 py-2.5 flex items-center gap-3 min-w-0">
 
         {/* Back */}
         <button onClick={() => router.push("/applications")} className="shrink-0 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors">
@@ -397,17 +396,17 @@ export default function PracticePage() {
           </button>
         )}
 
-        {/* Base resume pill */}
-        {(profile?.resume_text || profile?.resume_storage_path) && (
+        {/* Submitted resume pill */}
+        {(app?.resume_storage_path || app?.resume_submitted_text) && (
           <button
-            onClick={openBaseResume}
+            onClick={openAppResume}
             disabled={loadingResumeUrl}
             className="shrink-0 flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-[12px] font-medium text-emerald-700 hover:bg-emerald-100 transition-colors whitespace-nowrap disabled:opacity-60"
           >
             {loadingResumeUrl
               ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
               : <FileText className="h-3.5 w-3.5" />}
-            {profile?.resume_filename ?? "Base Resume"}
+            {app?.resume_submitted_filename ?? "Resume"}
           </button>
         )}
 
@@ -565,11 +564,11 @@ export default function PracticePage() {
         <TextModal title="Job Description" content={app.job_description} onClose={() => setJdModal(false)} />
       )}
 
-      {/* Text fallback when PDF isn't stored yet */}
-      {textFallbackOpen && profile?.resume_text && (
+      {/* Text fallback when PDF isn't available */}
+      {textFallbackOpen && app?.resume_submitted_text && (
         <TextModal
-          title={profile.resume_filename ?? "Base Resume"}
-          content={profile.resume_text}
+          title={app.resume_submitted_filename ?? "Resume"}
+          content={app.resume_submitted_text}
           onClose={() => setTextFallbackOpen(false)}
         />
       )}
