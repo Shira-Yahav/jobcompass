@@ -54,33 +54,29 @@ export async function POST(request: Request) {
     return Response.json({ error: `PDF parse failed: ${msg}` }, { status: 422 });
   }
 
-  // Store PDF in Supabase Storage so it can be viewed as a real PDF later
+  // Upload PDF to Supabase Storage for PDF viewing
   const storagePath = `${user.id}/base-resume.pdf`;
-  let resumeStoragePath: string | null = null;
-  try {
-    const { error: storageError } = await supabase.storage
-      .from("application-resumes")
-      .upload(storagePath, buffer, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-    if (!storageError) resumeStoragePath = storagePath;
-  } catch {
-    // Non-fatal — text is still saved
-  }
+  const { error: storageError } = await supabase.storage
+    .from("application-resumes")
+    .upload(storagePath, buffer, { contentType: "application/pdf", upsert: true });
 
-  const { error } = await supabase.from("profiles").upsert({
+  if (storageError) console.error("Profile resume storage upload failed:", storageError.message);
+
+  // Build the upsert payload — only set resume_storage_path if storage succeeded
+  const upsertPayload: Record<string, unknown> = {
     id: user.id,
     resume_text: resumeText,
     resume_filename: file.name,
-    resume_storage_path: resumeStoragePath,
     additional_context: additionalContext,
     updated_at: new Date().toISOString(),
-  });
+  };
+  if (!storageError) upsertPayload.resume_storage_path = storagePath;
+
+  const { error } = await supabase.from("profiles").upsert(upsertPayload);
 
   if (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 
-  return Response.json({ success: true, filename: file.name });
+  return Response.json({ success: true, filename: file.name, has_pdf_view: !storageError });
 }
