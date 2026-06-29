@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import {
-  FileText, Loader2, Upload, CheckCircle2, SendHorizonal, Copy, Download, Zap, X, ChevronDown, ChevronUp,
+  FileText, Loader2, Upload, CheckCircle2, SendHorizonal, Copy, Download, Zap, X, ChevronDown, ChevronUp, Square,
 } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import type { ChatMessage } from "@/types";
@@ -25,6 +25,7 @@ export default function TailorResumePage() {
     setChatHistory,
     runTailorResume,
     sendResumeChat,
+    cancelRun,
   } = useResultsStore();
   const supabase = createClient();
 
@@ -176,25 +177,30 @@ export default function TailorResumePage() {
             AI-rewritten for this specific role. Chat to refine.
           </p>
         </div>
-        <Tooltip content={!uploadedFilename ? "Upload your resume first" : tailored ? "Re-tailor for a fresh version" : "Rewrite your resume for this role"}>
+        {loadingResume && !tailored ? (
           <button
-            onClick={handleTailor}
-            disabled={loadingResume || !uploadedFilename}
-            className={`
-              flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-medium
-              transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0
-              ${tailored
-                ? "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:shadow-sm"
-                : "bg-indigo-500 text-white hover:bg-indigo-400 shadow-sm shadow-indigo-200"}
-            `}
+            onClick={cancelRun}
+            className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-[13px] font-medium text-red-600 hover:bg-red-100 transition-all shrink-0"
           >
-            {loadingResume && !tailored ? (
-              <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Running…</>
-            ) : (
-              <><Zap className="h-3.5 w-3.5" /> Run</>
-            )}
+            <Square className="h-3.5 w-3.5 fill-current" /> Stop
           </button>
-        </Tooltip>
+        ) : (
+          <Tooltip content={!uploadedFilename ? "Upload your resume first" : tailored ? "Re-tailor for a fresh version" : "Rewrite your resume for this role"}>
+            <button
+              onClick={handleTailor}
+              disabled={!uploadedFilename}
+              className={`
+                flex items-center gap-2 rounded-lg px-4 py-2 text-[13px] font-medium
+                transition-all disabled:opacity-50 disabled:cursor-not-allowed shrink-0
+                ${tailored
+                  ? "border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:shadow-sm"
+                  : "bg-indigo-500 text-white hover:bg-indigo-400 shadow-sm shadow-indigo-200"}
+              `}
+            >
+              <Zap className="h-3.5 w-3.5" /> Run
+            </button>
+          </Tooltip>
+        )}
       </div>
 
       {/* Body */}
@@ -356,15 +362,22 @@ export default function TailorResumePage() {
                       }
                     }}
                   />
-                  <button
-                    onClick={handleChatSend}
-                    disabled={loadingResume || !chatInput.trim()}
-                    className="self-end rounded-md bg-indigo-500 p-2.5 text-white transition-colors hover:bg-indigo-400 disabled:opacity-50"
-                  >
-                    {loadingResume
-                      ? <Loader2 className="h-4 w-4 animate-spin" />
-                      : <SendHorizonal className="h-4 w-4" />}
-                  </button>
+                  {loadingResume ? (
+                    <button
+                      onClick={cancelRun}
+                      className="self-end rounded-md border border-red-200 bg-red-50 p-2.5 text-red-600 hover:bg-red-100 transition-colors"
+                    >
+                      <Square className="h-4 w-4 fill-current" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleChatSend}
+                      disabled={!chatInput.trim()}
+                      className="self-end rounded-md bg-indigo-500 p-2.5 text-white transition-colors hover:bg-indigo-400 disabled:opacity-50"
+                    >
+                      <SendHorizonal className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
                 <p className="mt-1.5 text-[11px] text-slate-400">
                   Enter to send · Shift+Enter for new line

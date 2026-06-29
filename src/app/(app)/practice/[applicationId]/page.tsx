@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft, Loader2, SendHorizonal, BookOpen, RotateCcw,
   CheckCircle2, Circle, Zap, ChevronDown, ChevronUp,
-  FileText, ChevronLeft, ChevronRight, X,
+  FileText, ChevronLeft, ChevronRight, X, Square,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import type {
@@ -199,9 +199,10 @@ export default function PracticePage() {
   const [textFallbackOpen, setTextFallbackOpen]             = useState(false);
   const [loadingResumeUrl, setLoadingResumeUrl]             = useState(false);
 
-  const chatEndRef = useRef<HTMLDivElement>(null);
-  const inputRef   = useRef<HTMLTextAreaElement>(null);
-  const stageRef   = useRef<HTMLDivElement>(null);
+  const chatEndRef    = useRef<HTMLDivElement>(null);
+  const inputRef      = useRef<HTMLTextAreaElement>(null);
+  const stageRef      = useRef<HTMLDivElement>(null);
+  const abortRef      = useRef<AbortController | null>(null);
 
   // ── Load app + profile ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -245,18 +246,33 @@ export default function PracticePage() {
 
   // ── Generate ───────────────────────────────────────────────────────────────
   async function generate() {
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
     setPhase("generating");
     setSession(null);
-    const res = await fetch("/api/practice/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ applicationId, stage, feedbackMode }),
-    });
-    if (!res.ok) { toast.error("Failed to generate questions."); setPhase("idle"); return; }
-    const sess: PracticeSession = await res.json();
-    setSession(sess);
-    setPhase("active");
-    setTimeout(() => inputRef.current?.focus(), 100);
+    try {
+      const res = await fetch("/api/practice/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId, stage, feedbackMode }),
+        signal: abortRef.current.signal,
+      });
+      if (!res.ok) { toast.error("Failed to generate questions."); setPhase("idle"); return; }
+      const sess: PracticeSession = await res.json();
+      setSession(sess);
+      setPhase("active");
+      setTimeout(() => inputRef.current?.focus(), 100);
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      toast.error("Failed to generate questions.");
+      setPhase("idle");
+    }
+  }
+
+  function cancelGenerate() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setPhase("idle");
   }
 
   // ── Open application's submitted resume as PDF ───────────────────────────
@@ -293,28 +309,44 @@ export default function PracticePage() {
     const retryIdx = retryIndex;
     setRetryIndex(null);
 
-    const res = await fetch(`/api/practice/${session.id}/respond`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userMessage: userText, isRetry, retryQuestionIndex: retryIdx ?? undefined }),
-    });
-    setSending(false);
-    if (!res.ok) { toast.error("Failed to get response."); return; }
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    try {
+      const res = await fetch(`/api/practice/${session.id}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userMessage: userText, isRetry, retryQuestionIndex: retryIdx ?? undefined }),
+        signal: abortRef.current.signal,
+      });
+      if (!res.ok) { toast.error("Failed to get response."); return; }
 
-    const { newMessages, nextQuestionIndex } = await res.json() as {
-      newMessages: PracticeMessage[];
-      nextQuestionIndex: number;
-    };
-    setSession(prev => {
-      if (!prev) return prev;
-      return {
-        ...prev,
-        messages: [...prev.messages, ...newMessages],
-        current_question_index: nextQuestionIndex === -1 ? prev.current_question_index : nextQuestionIndex,
-        completed_at: nextQuestionIndex === -1 ? new Date().toISOString() : null,
+      const { newMessages, nextQuestionIndex } = await res.json() as {
+        newMessages: PracticeMessage[];
+        nextQuestionIndex: number;
       };
-    });
-    if (nextQuestionIndex === -1) setPhase("complete");
+      setSession(prev => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          messages: [...prev.messages, ...newMessages],
+          current_question_index: nextQuestionIndex === -1 ? prev.current_question_index : nextQuestionIndex,
+          completed_at: nextQuestionIndex === -1 ? new Date().toISOString() : null,
+        };
+      });
+      if (nextQuestionIndex === -1) setPhase("complete");
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      toast.error("Failed to get response.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  function cancelSend() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setSending(false);
+    setInput("");
   }
 
   // ── Retry ─────────────────────────────────────────────────────────────────
@@ -429,18 +461,24 @@ export default function PracticePage() {
           ))}
         </div>
 
-        {/* Generate — pushed to the far right */}
-        <button
-          onClick={generate}
-          disabled={phase === "generating"}
-          className="ml-auto shrink-0 flex items-center gap-1.5 rounded-xl bg-indigo-500 px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-indigo-400 disabled:opacity-50 transition-colors whitespace-nowrap"
-        >
-          {phase === "generating"
-            ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Generating…</>
-            : phase === "idle"
-            ? <><Zap className="h-3.5 w-3.5" /> Generate</>
-            : <><RotateCcw className="h-3.5 w-3.5" /> Regenerate</>}
-        </button>
+        {/* Generate / Stop — pushed to the far right */}
+        {phase === "generating" ? (
+          <button
+            onClick={cancelGenerate}
+            className="ml-auto shrink-0 flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3.5 py-1.5 text-[12px] font-semibold text-red-600 hover:bg-red-100 transition-colors whitespace-nowrap"
+          >
+            <Square className="h-3.5 w-3.5 fill-current" /> Stop
+          </button>
+        ) : (
+          <button
+            onClick={generate}
+            className="ml-auto shrink-0 flex items-center gap-1.5 rounded-xl bg-indigo-500 px-3.5 py-1.5 text-[12px] font-semibold text-white hover:bg-indigo-400 transition-colors whitespace-nowrap"
+          >
+            {phase === "idle"
+              ? <><Zap className="h-3.5 w-3.5" /> Generate</>
+              : <><RotateCcw className="h-3.5 w-3.5" /> Regenerate</>}
+          </button>
+        )}
       </div>
 
       {/* ── Body ────────────────────────────────────────────────────────── */}
@@ -493,13 +531,22 @@ export default function PracticePage() {
                     disabled={sending}
                     className="flex-1 resize-none rounded-xl border border-slate-200 bg-white px-4 py-3 text-[13px] text-slate-900 placeholder:text-slate-400 outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-100 transition-colors max-h-32 overflow-y-auto"
                   />
-                  <button
-                    onClick={sendMessage}
-                    disabled={sending || !input.trim()}
-                    className="self-end rounded-xl bg-indigo-500 p-3 text-white hover:bg-indigo-400 disabled:opacity-50 transition-colors"
-                  >
-                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <SendHorizonal className="h-4 w-4" />}
-                  </button>
+                  {sending ? (
+                    <button
+                      onClick={cancelSend}
+                      className="self-end rounded-xl border border-red-200 bg-red-50 p-3 text-red-600 hover:bg-red-100 transition-colors"
+                    >
+                      <Square className="h-4 w-4 fill-current" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={sendMessage}
+                      disabled={!input.trim()}
+                      className="self-end rounded-xl bg-indigo-500 p-3 text-white hover:bg-indigo-400 disabled:opacity-50 transition-colors"
+                    >
+                      <SendHorizonal className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
                 <p className="mt-1.5 text-[11px] text-slate-400">Enter to send · Shift+Enter for new line</p>
               </div>

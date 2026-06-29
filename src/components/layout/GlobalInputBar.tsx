@@ -2,14 +2,14 @@
 
 import { useJobStore } from "@/store/jobStore";
 import { useResultsStore } from "@/store/resultsStore";
-import { Target, Building2, FileText, Play, Loader2, Link2 } from "lucide-react";
+import { Target, Building2, FileText, Play, Loader2, Link2, Square } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useRouter, usePathname } from "next/navigation";
 
 export function GlobalInputBar() {
   const { companyName, jobDescription, sessionId, setCompanyName, setJobDescription } = useJobStore();
-  const { loadingCompany, loadingPosition, runCompanyResearch, runPositionResearch } = useResultsStore();
+  const { loadingCompany, loadingPosition, runCompanyResearch, runPositionResearch, cancelRun } = useResultsStore();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -97,19 +97,26 @@ export function GlobalInputBar() {
           </Tooltip>
         </div>
 
-        {/* Run button */}
-        <Tooltip content={runTooltip} side="left">
+        {/* Run / Stop button */}
+        {loading ? (
           <button
-            onClick={handleRun}
-            disabled={loading}
-            className="flex h-9 items-center gap-1.5 rounded-md bg-indigo-500 px-4 text-[13px] font-semibold text-white shadow-sm shadow-indigo-200 transition-all hover:bg-indigo-400 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+            onClick={cancelRun}
+            className="flex h-9 items-center gap-1.5 rounded-md border border-red-200 bg-red-50 px-4 text-[13px] font-semibold text-red-600 hover:bg-red-100 transition-all shrink-0"
           >
-            {loading
-              ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              : <Play className="h-3.5 w-3.5" />}
-            Run
+            <Square className="h-3.5 w-3.5 fill-current" />
+            Stop
           </button>
-        </Tooltip>
+        ) : (
+          <Tooltip content={runTooltip} side="left">
+            <button
+              onClick={handleRun}
+              className="flex h-9 items-center gap-1.5 rounded-md bg-indigo-500 px-4 text-[13px] font-semibold text-white shadow-sm shadow-indigo-200 transition-all hover:bg-indigo-400 shrink-0"
+            >
+              <Play className="h-3.5 w-3.5" />
+              Run
+            </button>
+          </Tooltip>
+        )}
       </div>
     </div>
   );
