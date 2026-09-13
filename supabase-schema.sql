@@ -15,6 +15,7 @@ create table if not exists public.profiles (
   domains text[] not null default '{}',              -- free-form tags: ["SaaS", "Climate Tech"]
   work_style text not null default 'hybrid',         -- "remote" | "hybrid" | "onsite"
   fit_weights jsonb not null default '{"salary":5,"company_type":5,"funding_stage":5,"domain":5,"work_style":5}'::jsonb,
+  display_name text,                                 -- optional, mainly captured from guest sessions
   resume_text text,
   resume_filename text,
   additional_context text,
@@ -42,6 +43,9 @@ begin
   end if;
   if not exists (select 1 from information_schema.columns where table_name='profiles' and column_name='fit_weights') then
     alter table public.profiles add column fit_weights jsonb not null default '{"salary":5,"company_type":5,"funding_stage":5,"domain":5,"work_style":5}'::jsonb;
+  end if;
+  if not exists (select 1 from information_schema.columns where table_name='profiles' and column_name='display_name') then
+    alter table public.profiles add column display_name text;
   end if;
 end $$;
 

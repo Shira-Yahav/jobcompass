@@ -30,6 +30,7 @@ export interface UserProfile {
   domains: string[];                   // free-form tags e.g. ["SaaS", "Climate Tech"]
   work_style: WorkStyle;
   fit_weights: FitWeights | null;
+  display_name: string | null;
   resume_text: string | null;
   resume_filename: string | null;
   resume_storage_path: string | null;

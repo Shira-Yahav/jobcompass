@@ -43,6 +43,7 @@ type SaveState = "idle" | "saving" | "saved";
 export default function ProfilePage() {
   const supabase = createClient();
 
+  const [displayName, setDisplayName] = useState("");
   const [desiredPosition, setDesiredPosition] = useState("");
   const [salaryFloor, setSalaryFloor] = useState("");
   const [companySizes, setCompanySizes] = useState<string[]>([]);
@@ -73,6 +74,7 @@ export default function ProfilePage() {
 
       if (data) {
         const p = data as UserProfile;
+        setDisplayName(p.display_name ?? "");
         setDesiredPosition(p.desired_position ?? "");
         setSalaryFloor(p.salary_floor ? String(p.salary_floor) : "");
         setCompanySizes(p.company_sizes ?? []);
@@ -101,6 +103,7 @@ export default function ProfilePage() {
     const timer = setTimeout(async () => {
       const { error } = await supabase.from("profiles").upsert({
         id: userId,
+        display_name: displayName || null,
         desired_position: desiredPosition,
         salary_floor: parseInt(salaryFloor) || 0,
         company_sizes: companySizes,
@@ -122,7 +125,7 @@ export default function ProfilePage() {
 
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [desiredPosition, salaryFloor, companySizes, companyTypes, fundingStages, domains, workStyle, fitWeights]);
+  }, [displayName, desiredPosition, salaryFloor, companySizes, companyTypes, fundingStages, domains, workStyle, fitWeights]);
 
   function setWeight(key: keyof FitWeights, value: number) {
     setFitWeights((prev) => ({ ...prev, [key]: value }));
@@ -163,6 +166,16 @@ export default function ProfilePage() {
           {/* ── Role ─────────────────────────────────────────────────────── */}
           <FormSection title="Role">
             <div className="flex flex-col gap-4">
+              <Field label="Your name (optional)">
+                <input
+                  type="text"
+                  placeholder="e.g. Jamie Rivera"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  className={inputCls}
+                />
+              </Field>
+
               <Field label="Desired position">
                 <input
                   type="text"

@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -41,6 +42,18 @@ export default function LoginPage() {
     // On success, browser redirects — no need to setLoading(false)
   }
 
+  async function handleGuestLogin() {
+    setGuestLoading(true);
+    const { error } = await supabase.auth.signInAnonymously();
+    if (error) {
+      toast.error(error.message);
+      setGuestLoading(false);
+      return;
+    }
+    router.push("/profile");
+    router.refresh();
+  }
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
@@ -55,10 +68,29 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Guest / try-it-now */}
+        <button
+          onClick={handleGuestLogin}
+          disabled={guestLoading || loading || googleLoading}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-slate-800 disabled:opacity-50"
+        >
+          {guestLoading ? (
+            <svg className="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+            </svg>
+          ) : (
+            "Try it now — no account needed"
+          )}
+        </button>
+        <p className="mb-4 text-center text-[11px] text-slate-400">
+          Just exploring? Jump straight in, no email required.
+        </p>
+
         {/* Google OAuth */}
         <button
           onClick={handleGoogleLogin}
-          disabled={googleLoading || loading}
+          disabled={googleLoading || loading || guestLoading}
           className="mb-4 flex w-full items-center justify-center gap-3 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 disabled:opacity-50"
         >
           {googleLoading ? (
@@ -110,7 +142,7 @@ export default function LoginPage() {
           </div>
           <button
             type="submit"
-            disabled={loading || googleLoading}
+            disabled={loading || googleLoading || guestLoading}
             className="mt-1 rounded-lg bg-indigo-600 py-2.5 text-sm font-medium text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
           >
             {loading ? "Signing in…" : "Sign in"}

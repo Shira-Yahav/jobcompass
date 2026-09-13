@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { GuestBanner } from "@/components/layout/GuestBanner";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -10,6 +11,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen overflow-hidden bg-slate-50">
         <Sidebar />
         <main className="flex flex-1 flex-col overflow-hidden bg-white border-l border-slate-200">
+          <GuestBanner />
           {children}
         </main>
       </div>
